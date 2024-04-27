@@ -21,7 +21,7 @@ Simply add this to your `dotspacemacs-additional-packages` list
 ```elisp
   (diff-lsp :location (recipe
                      :fetcher github
-                     :repo "C-Hipple/diff-lsp"
+                     :repo "C-Hipple/diff-lsp.el"
                      :files ("*.el")
                      )
           )
