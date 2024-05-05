@@ -38,11 +38,68 @@
   (add-to-list 'lsp-language-id-configuration
                '(diff-test-mode . "diff-lsp"))
 
+  (add-to-list 'lsp-language-id-configuration
+               '(diff-test-mode . "diff-lsp"))
+               '(magit-status-mode . "gopls")
+
+
+  ;; (add-to-list 'lsp-language-id-configuration
+  ;;              '(magit-status-mode . "diff-lsp"))
+
+  ;; (add-to-list 'lsp-language-id-configuration
+  ;;              '(emacs-lisp-mode . "diff-lsp"))
+
   (lsp-register-client
    (make-lsp-client :new-connection (lsp-stdio-connection "diff-lsp")
                     :activation-fn (lsp-activate-on "diff-lsp")
                     :server-id 'diff-lsp)
    )
+  )
+
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               `(magit-status-mode . ("diff-lsp"))
+               )
+  )
+
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               `(diff-test-mode . ("diff-lsp"))
+               )
+  )
+(defun insertln (ln)
+  (insert ln)
+  (insert "\n")
+  )
+
+(defun dlsp--buffer-to-file (filename)
+  (delete-file filename)
+  (let (
+        (contents (buffer-string))
+        (current_filename (buffer-name))
+        (project_name (projectile-project-name))
+        (root (projectile-project-root))
+        ;;(uri (eglot--uri-to-path current_filename))
+        )
+    (with-temp-buffer
+      (insertln (concat "Project: " current_filename))
+      (insertln (concat "Root : " root))
+      (insertln (concat "Buffer: " project_name))
+      (insertln (concat "Type: " "magit-status"))
+      (insert contents)
+      (write-file filename)
+      )
+    )
+  )
+
+  (lsp-register-client
+   (make-lsp-client :new-connection (lsp-stdio-connection "diff-lsp")
+                    :activation-fn (lsp-activate-on "diff-lsp")
+                    :server-id 'diff-lsp)
+   )
+(defun test-dlsp-fun ()
+  (interactive)
+  (dlsp--buffer-to-file "~/test6.diff-test")
   )
 
 (provide 'diff-lsp)
