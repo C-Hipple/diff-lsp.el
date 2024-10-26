@@ -39,8 +39,8 @@
                '(diff-test-mode . "diff-lsp"))
 
   (add-to-list 'lsp-language-id-configuration
-               '(diff-test-mode . "diff-lsp"))
-               '(magit-status-mode . "gopls")
+               '(diff-test-mode . "diff-lsp")
+               '(magit-status-mode . "diff-lsp"))
 
 
   ;; (add-to-list 'lsp-language-id-configuration
@@ -92,15 +92,26 @@
     )
   )
 
-  (lsp-register-client
-   (make-lsp-client :new-connection (lsp-stdio-connection "diff-lsp")
-                    :activation-fn (lsp-activate-on "diff-lsp")
-                    :server-id 'diff-lsp)
-   )
+(lsp-register-client
+ (make-lsp-client :new-connection (lsp-stdio-connection "diff-lsp")
+                  :activation-fn (lsp-activate-on "diff-lsp")
+                  :server-id 'diff-lsp)
+ )
 (defun test-dlsp-fun ()
   (interactive)
-  (dlsp--buffer-to-file "~/test6.diff-test")
+  (dlsp--buffer-to-file "~/lsp-example/test6.diff-test")
   )
+
+(defun diff-lsp--tail-logs (pipe-cmd)
+  ;; Simple helper to immediately tail the logs when debugging
+  (interactive "sPipeCommand:")
+  (let ((command "tail -f ~/.diff-lsp.log"))
+    (when (not (string= pipe-cmd "")) (setq command (concat command " | " pipe-cmd)))
+    (compile command)))
+
+
+;; f l for files - logs, i guess
+(define-key evil-normal-state-map (kbd ", f l") 'diff-lsp--tail-logs)
 
 (provide 'diff-lsp)
 ;;; test.el ends here
