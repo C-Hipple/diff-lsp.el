@@ -1,4 +1,4 @@
-;;; diff-lsp.el -- A package for configuring & using diff-lsp -* lexical-binding: t; -*-
+;;; diff-lsp.el --- A package for configuring & using diff-lsp -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2024 Chris Hipple
 
@@ -39,8 +39,10 @@
                '(diff-test-mode . "diff-lsp"))
 
   (add-to-list 'lsp-language-id-configuration
-               '(diff-test-mode . "diff-lsp")
                '(magit-status-mode . "diff-lsp"))
+
+  (add-to-list 'lsp-language-id-configuration
+               '(magit-mode . "diff-lsp"))
 
 
   ;; (add-to-list 'lsp-language-id-configuration
@@ -59,13 +61,14 @@
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
                `(magit-status-mode . ("diff-lsp"))
+               `(magit-mode . ("diff-lsp"))
                )
   )
 
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
-               `(diff-test-mode . ("diff-lsp"))
-               )
+               ;;`(diff-test-mode . ("lsp-example"))
+               `(diff-test-mode . ("diff-lsp")))
   )
 (defun insertln (ln)
   (insert ln)
@@ -83,7 +86,7 @@
         )
     (with-temp-buffer
       (insertln (concat "Project: " current_filename))
-      (insertln (concat "Root : " root))
+      (insertln (concat "Root: " root))
       (insertln (concat "Buffer: " project_name))
       (insertln (concat "Type: " "magit-status"))
       (insert contents)
@@ -97,9 +100,10 @@
                   :activation-fn (lsp-activate-on "diff-lsp")
                   :server-id 'diff-lsp)
  )
+
 (defun test-dlsp-fun ()
   (interactive)
-  (dlsp--buffer-to-file "~/lsp-example/test6.diff-test")
+  (dlsp--buffer-to-file "~/diff-lsp/diff-lsp-status.diff-test")
   )
 
 (defun diff-lsp--tail-logs (pipe-cmd)
@@ -108,6 +112,7 @@
   (let ((command "tail -f ~/.diff-lsp.log"))
     (when (not (string= pipe-cmd "")) (setq command (concat command " | " pipe-cmd)))
     (compile command)))
+
 
 
 ;; f l for files - logs, i guess
