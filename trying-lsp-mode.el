@@ -16,8 +16,9 @@ argument ask the user to select which language server to start."
   (interactive "P")
 
   (lsp--require-packages)
-  (message "starting")
+  (message "\n\n\nstarting\n\n\n")
   ;; (print lsp-clients)
+  (setq arg t)
   (when (projectile-project-name) ;; used to be buffer-file-name
     (let (clients
           (matching-clients (lsp--filter-clients
@@ -31,22 +32,22 @@ argument ask the user to select which language server to start."
         (when (setq lsp--buffer-workspaces
                     (or
                      ;; Don't open as library file if file is part of a project.
-                     ;;(not (lsp-find-session-folder (lsp-session) "test6.diff-test"))
+                     ;; (not (lsp-find-session-folder (lsp-session) "test6.diff-test"))
                      (diff-lsp--try-open-in-library-workspace)
 
-                     ;; (lsp--try-project-root-workspaces (equal arg '(4))
-                     ;;                                   (and arg (not (equal arg 1))))
+                     (lsp--try-project-root-workspaces (equal arg '(4))
+                                                       (and arg (not (equal arg 1))))
 
                      ))
           (message "Enabling LSP mode for buffer")
           (lsp-mode 1)
           (when lsp-auto-configure (lsp--auto-configure))
           (setq lsp-buffer-uri (lsp--buffer-uri))
-          (lsp--info "Connected to %s."
-                     (apply 'concat (--map (format "[%s %s]"
-                                                   (lsp--workspace-print it)
-                                                   (lsp--workspace-root it))
-                                           lsp--buffer-workspaces)))))
+          (message "Connected to %s." ;; was lsp-info
+                   (apply 'concat (--map (format "[%s %s]"
+                                                 (lsp--workspace-print it)
+                                                 (lsp--workspace-root it))
+                                         lsp--buffer-workspaces)))))
        ;; look for servers which are currently being downloaded.
        ((setq clients (lsp--filter-clients (-andfn #'lsp--supports-buffer?
                                                    #'lsp--client-download-in-progress?)))
@@ -124,7 +125,7 @@ You can customize `lsp-warn-no-matched-clients' to disable this message."
 
 (defun lsp--find-clients ()
   "Find clients which can handle current buffer."
-  ("Starting find clients")
+  (message "Starting find clients")
   (-when-let (matching-clients (lsp--filter-clients (-andfn #'lsp--supports-buffer?
                                                             #'lsp--server-binary-present?)))
     (message "Found the following clients for %s: %s" ;; was lsp-log
@@ -142,7 +143,7 @@ You can customize `lsp-warn-no-matched-clients' to disable this message."
                                                                    main-clients))))
                                   (cons main-client add-on-clients)
                                 add-on-clients)))
-      (lsp-log "The following clients were selected based on priority: %s"
+      (message "The following clients were selected based on priority: %s" ;; was lsp-log not message
                (s-join ", "
                        (-map (lambda (client)
                                (format "(server-id %s, priority %s)"
@@ -160,6 +161,7 @@ The library folders are defined by each client for each of the active workspace.
   ;; (message (concat "library folder:" (library-folder)))
   (print "workspaces: ")
   (print (lsp--session-workspaces (lsp-session)))
+  (print "end workspaces: ")
   (when-let ((workspace (->> (lsp-session)
                              (lsp--session-workspaces)
                              ;; Sort the last active workspaces first as they are more likely to be
@@ -167,12 +169,14 @@ The library folders are defined by each client for each of the active workspace.
                              (-sort (lambda (a _b)
                                       (-contains? lsp--last-active-workspaces a)))
                              (--first
+                              ;; (message (concat "checking: " workspace))
                               (and (-> it lsp--workspace-client lsp--supports-buffer?)
                                    (when-let ((library-folders-fn
                                                (-> it lsp--workspace-client lsp--client-library-folders-fn)))
                                      (-first (lambda (library-folder)
                                                (lsp-f-ancestor-of? library-folder (diff-file-name)))
                                              (funcall library-folders-fn it))))))))
+
     (message "in end of try-open")
     (lsp--open-in-workspace workspace)
     (view-mode t)
@@ -191,3 +195,156 @@ Symlinks are not followed."
 ;;   (equal
 ;;    (lsp-f-canonical (directory-file-name (f-expand path-a)))
 ;;    (lsp-f-canonical (directory-file-name (f-expand path-b))))))
+
+(defun lsp-resolve-final-command (command &optional test?)
+  "Resolve final function COMMAND."
+  (message (concat "Tryihng to resolve teh command: " command))
+
+  (let* ((command (lsp-resolve-value command))
+         (command (cl-etypecase command
+                    (list
+                     (cl-assert (seq-every-p (apply-partially #'stringp) command) nil
+                                "Invalid command list")
+                     command)
+                    (string (list command)))))
+    (if (and (file-remote-p default-directory) (not test?))
+        (list shell-file-name "-c"
+              (string-join (cons "stty raw > /dev/null;"
+                                 (mapcar #'shell-quote-argument command))
+                           " "))
+      command)))
+
+(defun lsp-f-canonical (file-name)
+  "Return the canonical FILE-NAME, without a trailing slash."
+  (if (not file-name)
+      ;; (message "Overriding filename")
+      (setq file-name "~/lsp-example/main.go")
+    )
+  (message (concat "Canonicallizing the file-name: " file-name))
+  (directory-file-name (expand-file-name file-name)))
+
+
+;; TODO rename to diff-lsp--start-workspace and update caller
+(defun lsp--start-workspace (session client-template root &optional initialization-options)
+  "Create new workspace for CLIENT-TEMPLATE with project root ROOT.
+INITIALIZATION-OPTIONS are passed to initialize function.
+SESSION is the active session."
+  (lsp--spinner-start)
+  (-let* ((default-directory root)
+          (client (copy-lsp--client client-template))
+          (workspace (make-lsp--workspace
+                      :root root
+                      :client client
+                      :status 'starting
+                      :buffers (list (lsp-current-buffer))
+                      :host-root (file-remote-p root)))
+          ((&lsp-cln 'server-id 'environment-fn 'new-connection 'custom-capabilities
+                     'multi-root 'initialized-fn) client)
+          ((proc . cmd-proc) (funcall
+                              (or (plist-get new-connection :connect)
+                                  (user-error "Client %s is configured incorrectly" client))
+                              (lsp--create-filter-function workspace)
+                              (apply-partially #'lsp--process-sentinel workspace)
+                              (format "%s" server-id)
+                              environment-fn
+                              workspace))
+          (workspace-folders (gethash server-id (lsp-session-server-id->folders session))))
+    (setf (lsp--workspace-proc workspace) proc
+          (lsp--workspace-cmd-proc workspace) cmd-proc)
+
+    ;; update (lsp-session-folder->servers) depending on whether we are starting
+    ;; multi/single folder workspace
+    (mapc (lambda (project-root)
+            (->> session
+                 (lsp-session-folder->servers)
+                 (gethash project-root)
+                 (cl-pushnew workspace)))
+          (or workspace-folders (list root)))
+
+    (with-lsp-workspace workspace
+      (run-hooks 'lsp-before-initialize-hook)
+      (lsp-request-async
+       "initialize"
+       (append
+        (list :processId (unless (file-remote-p (buffer-file-name))
+                           (emacs-pid))
+              :rootPath (lsp-file-local-name (expand-file-name root))
+              :clientInfo (list :name "emacs"
+                                :version (emacs-version))
+              :rootUri (lsp--path-to-uri root)
+              :capabilities (lsp--client-capabilities custom-capabilities)
+              :initializationOptions initialization-options
+              :workDoneToken "1")
+        (when lsp-server-trace
+          (list :trace lsp-server-trace))
+        (when multi-root
+          (->> workspace-folders
+               (-distinct)
+               (-map (lambda (folder)
+                       (list :uri (lsp--path-to-uri folder)
+                             :name (f-filename folder))))
+               (apply 'vector)
+               (list :workspaceFolders))))
+       (-lambda ((&InitializeResult :capabilities))
+         ;; we know that Rust Analyzer will send {} which will be parsed as null
+         ;; when using plists
+         (when (equal 'rust-analyzer server-id)
+           (-> capabilities
+               (lsp:server-capabilities-text-document-sync?)
+               (lsp:set-text-document-sync-options-save? t)))
+
+         (setf (lsp--workspace-server-capabilities workspace) capabilities
+               (lsp--workspace-status workspace) 'initialized)
+
+         (with-lsp-workspace workspace
+           (lsp-notify "initialized" lsp--empty-ht))
+
+         (when initialized-fn (funcall initialized-fn workspace))
+
+         (cl-callf2 -filter #'lsp-buffer-live-p (lsp--workspace-buffers workspace))
+         (->> workspace
+              (lsp--workspace-buffers)
+              (mapc (lambda (buffer)
+                      (lsp-with-current-buffer buffer
+                        (lsp--open-in-workspace workspace)))))
+
+         (with-lsp-workspace workspace
+           (run-hooks 'lsp-after-initialize-hook))
+         (lsp--info "%s initialized successfully in folders: %s"
+                    (lsp--workspace-print workspace)
+                    (lsp-workspace-folders workspace)))
+       :mode 'detached))
+    workspace))
+
+
+
+;; doing path to URI for: /Users/rain/lsp-example/main.go
+(defun lsp--path-to-uri (path)
+  "Convert PATH to a uri."
+  (message (concat "doing path to URI for: " path))
+  (if (not path)
+      (setq path "/Users/rain/lsp-example/test6.diff-test")
+    )
+  (if-let ((uri-fn (->> (lsp-workspaces)
+                        (-keep (-compose #'lsp--client-path->uri-fn #'lsp--workspace-client))
+                        (cl-first))))
+      (funcall uri-fn path)
+    (lsp--path-to-uri-1 path)))
+
+
+
+
+
+
+(defun diff-lsp--set-priority (server priority)
+  (setf (lsp--client-priority (gethash server lsp-clients)) priority))
+
+(defun diff-lsp--get-priority (server)
+  (lsp--client-priority (gethash server lsp-clients)))
+
+
+
+(diff-lsp--set-priority 'gdscript -1)
+(diff-lsp--set-priority 'gdscript-tramp -1)
+(diff-lsp--set-priority 'diff-lsp-tramp -1)
+(diff-lsp--get-priority 'gdscript-tramp)
