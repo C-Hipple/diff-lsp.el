@@ -1,6 +1,6 @@
 (defun diff-file-name ()
   (message "setting diff-file-name")
-  "test6.diff-test"
+  "code-review.diff-test"
   )
 
 ;; This function is analogous to the standard "lsp"
@@ -49,60 +49,58 @@ argument ask the user to select which language server to start."
                                                  (lsp--workspace-root it))
                                          lsp--buffer-workspaces)))))
        ;; look for servers which are currently being downloaded.
-       ((setq clients (lsp--filter-clients (-andfn #'lsp--supports-buffer?
-                                                   #'lsp--client-download-in-progress?)))
-        (message "set the clients!")
-        (lsp--info "There are language server(%s) installation in progress.
+       (message "set the clients!")
+       (lsp--info "There are language server(%s) installation in progress.
 The server(s) will be started in the buffer when it has finished."
-                   (-map #'lsp--client-server-id clients))
-        (seq-do (lambda (client)
-                  (cl-pushnew (current-buffer) (lsp--client-buffers client)))
-                clients))
-       ;; look for servers to install
-       ((setq clients (lsp--filter-clients
-                       (-andfn #'lsp--supports-buffer?
-                               (-const lsp-enable-suggest-server-download)
-                               #'lsp--client-download-server-fn
-                               (-not #'lsp--client-download-in-progress?))))
-        (message (concat "clients: " clients))
-        (let ((client (lsp--completing-read
-                       (concat "Unable to find installed server supporting this file. "
-                               "The following servers could be installed automatically: ")
-                       clients
-                       (-compose #'symbol-name #'lsp--client-server-id)
-                       nil
-                       t)))
-          (cl-pushnew (current-buffer) (lsp--client-buffers client))
-          (lsp--install-server-internal client)))
-       ;; ignore other warnings
-       ((not lsp-warn-no-matched-clients)
-        nil)
-       ;; automatic installation disabled
-       ((setq clients (unless matching-clients
-                        (lsp--filter-clients (-andfn #'lsp--supports-buffer?
-                                                     #'lsp--client-download-server-fn
-                                                     (-not (-const lsp-enable-suggest-server-download))
-                                                     (-not #'lsp--server-binary-present?)))))
-        (lsp--warn "The following servers support current file but automatic download is disabled: %s
+                  (-map #'lsp--client-server-id clients))
+       (seq-do (lambda (client)
+                 (cl-pushnew (current-buffer) (lsp--client-buffers client)))
+               clients))
+      ;; look for servers to install
+      ((setq clients (lsp--filter-clients
+                      (-andfn #'lsp--supports-buffer?
+                              (-const lsp-enable-suggest-server-download)
+                              #'lsp--client-download-server-fn
+                              (-not #'lsp--client-download-in-progress?))))
+       (message (concat "clients: " clients))
+       (let ((client (lsp--completing-read
+                      (concat "Unable to find installed server supporting this file. "
+                              "The following servers could be installed automatically: ")
+                      clients
+                      (-compose #'symbol-name #'lsp--client-server-id)
+                      nil
+                      t)))
+         (cl-pushnew (current-buffer) (lsp--client-buffers client))
+         (lsp--install-server-internal client)))
+      ;; ignore other warnings
+      ((not lsp-warn-no-matched-clients)
+       nil)
+      ;; automatic installation disabled
+      ((setq clients (unless matching-clients
+                       (lsp--filter-clients (-andfn #'lsp--supports-buffer?
+                                                    #'lsp--client-download-server-fn
+                                                    (-not (-const lsp-enable-suggest-server-download))
+                                                    (-not #'lsp--server-binary-present?)))))
+       (lsp--warn "The following servers support current file but automatic download is disabled: %s
 \(If you have already installed the server check *lsp-log*)."
-                   (mapconcat (lambda (client)
-                                (symbol-name (lsp--client-server-id client)))
-                              clients
-                              " ")))
-       ;; no clients present
-       ((setq clients (unless matching-clients
-                        (lsp--filter-clients (-andfn #'lsp--supports-buffer?
-                                                     (-not #'lsp--server-binary-present?)))))
-        (lsp--warn "The following servers support current file but do not have automatic installation: %s
+                  (mapconcat (lambda (client)
+                               (symbol-name (lsp--client-server-id client)))
+                             clients
+                             " ")))
+      ;; no clients present
+      ((setq clients (unless matching-clients
+                       (lsp--filter-clients (-andfn #'lsp--supports-buffer?
+                                                    (-not #'lsp--server-binary-present?)))))
+       (lsp--warn "The following servers support current file but do not have automatic installation: %s
 You may find the installation instructions at https://emacs-lsp.github.io/lsp-mode/page/languages.
 \(If you have already installed the server check *lsp-log*)."
-                   (mapconcat (lambda (client)
-                                (symbol-name (lsp--client-server-id client)))
-                              clients
-                              " ")))
-       ;; no matches
-       ((-> #'lsp--supports-buffer? lsp--filter-clients not)
-        (lsp--error "There are no language servers supporting current mode `%s' registered with `lsp-mode'.
+                  (mapconcat (lambda (client)
+                               (symbol-name (lsp--client-server-id client)))
+                             clients
+                             " ")))
+      ;; no matches
+      ((-> #'lsp--supports-buffer? lsp--filter-clients not)
+       (lsp--error "There are no language servers supporting current mode `%s' registered with `lsp-mode'.
 This issue might be caused by:
 1. The language you are trying to use does not have built-in support in `lsp-mode'. You must install the required support manually. Examples of this are `lsp-java' or `lsp-metals'.
 2. The language server that you expect to run is not configured to run for major mode `%s'. You may check that by checking the `:major-modes' that are passed to `lsp-register-client'.
@@ -110,7 +108,7 @@ This issue might be caused by:
 4. You are over `tramp'. In this case follow https://emacs-lsp.github.io/lsp-mode/page/remote/.
 5. You have disabled the `lsp-mode' clients for that file. (Check `lsp-enabled-clients' and `lsp-disabled-clients').
 You can customize `lsp-warn-no-matched-clients' to disable this message."
-                    major-mode major-mode major-mode))))))
+                   major-mode major-mode major-mode)))))
 
 (defun lsp--supports-buffer? (client)
   (message "calling supports buffer")
@@ -212,23 +210,32 @@ Symlinks are not followed."
               (string-join (cons "stty raw > /dev/null;"
                                  (mapcar #'shell-quote-argument command))
                            " "))
-      command)))
+      (progn
+        (message (concat"resolved the command to: " (prin1-to-string command )))
+        command))))
 
-(defun lsp-f-canonical (file-name)
-  "Return the canonical FILE-NAME, without a trailing slash."
-  (if (not file-name)
-      ;; (message "Overriding filename")
-      (setq file-name "~/lsp-example/main.go")
-    )
-  (message (concat "Canonicallizing the file-name: " file-name))
-  (directory-file-name (expand-file-name file-name)))
+;; (defun lsp-f-canonical (file-name)
+;;   "Return the canonical FILE-NAME, without a trailing slash."
+;;   (if (not file-name)
+;;       ;; (message "Overriding filename")
+;;       (setq file-name "~/lsp-example/main.go")
+;;     )
+;;   (message (concat "Canonicallizing the file-name: " file-name))
+;;   (directory-file-name (expand-file-name file-name)))
 
+(defun diff-lsp--start-workspace (orig-fn &rest args)
+  (if (eq major-mode 'code-review-mode)
+      (apply #'diff-lsp--patch-start-workspace args)
+    (apply orig-fn args)))
 
-;; TODO rename to diff-lsp--start-workspace and update caller
-(defun lsp--start-workspace (session client-template root &optional initialization-options)
+(advice-add 'lsp--start-workspace :around #'diff-lsp--patch-start-workspace)
+(advice-remove 'lsp--start-workspace 'nil)
+
+(defun diff-lsp--patch-start-workspace (session client-template root &optional initialization-options)
   "Create new workspace for CLIENT-TEMPLATE with project root ROOT.
 INITIALIZATION-OPTIONS are passed to initialize function.
 SESSION is the active session."
+  (message "doing patched start workspace")
   (lsp--spinner-start)
   (-let* ((default-directory root)
           (client (copy-lsp--client client-template))
@@ -238,6 +245,8 @@ SESSION is the active session."
                       :status 'starting
                       :buffers (list (lsp-current-buffer))
                       :host-root (file-remote-p root)))
+          (message "Printing workspace")
+          (message (prin1-to-string workspace))
           ((&lsp-cln 'server-id 'environment-fn 'new-connection 'custom-capabilities
                      'multi-root 'initialized-fn) client)
           ((proc . cmd-proc) (funcall
@@ -262,6 +271,7 @@ SESSION is the active session."
           (or workspace-folders (list root)))
 
     (with-lsp-workspace workspace
+      (message "sending initialize")
       (run-hooks 'lsp-before-initialize-hook)
       (lsp-request-async
        "initialize"
@@ -286,12 +296,13 @@ SESSION is the active session."
                (apply 'vector)
                (list :workspaceFolders))))
        (-lambda ((&InitializeResult :capabilities))
+         (message "doing initialize result")
          ;; we know that Rust Analyzer will send {} which will be parsed as null
          ;; when using plists
-         (when (equal 'rust-analyzer server-id)
-           (-> capabilities
-               (lsp:server-capabilities-text-document-sync?)
-               (lsp:set-text-document-sync-options-save? t)))
+         ;; (when (equal 'rust-analyzer server-id)
+         ;;   (-> capabilities
+         ;;       (lsp:server-capabilities-text-document-sync?)
+         ;;       (lsp:set-text-document-sync-options-save? t)))
 
          (setf (lsp--workspace-server-capabilities workspace) capabilities
                (lsp--workspace-status workspace) 'initialized)
@@ -317,23 +328,29 @@ SESSION is the active session."
     workspace))
 
 
+(defun diff-lsp--calculate-root (orig-fn &rest args)
+  (if (eq major-mode 'code-review-mode)
+      (apply #'diff-lsp--patch-calculate-root args)
+    (apply orig-fn args)))
+
+(advice-add 'lsp--calculate-root :around #'diff-lsp--calculate-root)
+;; (advice-remove 'lsp--calculate-root nil)
+
+(defun diff-lsp--patch-calculate-root (&optional x y)
+  "/home/chris/gtdbot")
 
 ;; doing path to URI for: /Users/rain/lsp-example/main.go
-(defun lsp--path-to-uri (path)
-  "Convert PATH to a uri."
-  (message (concat "doing path to URI for: " path))
-  (if (not path)
-      (setq path "/Users/rain/lsp-example/test6.diff-test")
-    )
-  (if-let ((uri-fn (->> (lsp-workspaces)
-                        (-keep (-compose #'lsp--client-path->uri-fn #'lsp--workspace-client))
-                        (cl-first))))
-      (funcall uri-fn path)
-    (lsp--path-to-uri-1 path)))
-
-
-
-
+;; (defun lsp--path-to-uri (path)
+;;   "Convert PATH to a uri."
+;;   (message (concat "doing path to URI for: " path))
+;;   (if (not path)
+;;       (setq path "/Users/rain/lsp-example/test6.diff-test")
+;;     )
+;;   (if-let ((uri-fn (->> (lsp-workspaces)
+;;                         (-keep (-compose #'lsp--client-path->uri-fn #'lsp--workspace-client))
+;;                         (cl-first))))
+;;       (funcall uri-fn path)
+;;     (lsp--path-to-uri-1 path)))
 
 
 (defun diff-lsp--set-priority (server priority)
@@ -344,7 +361,26 @@ SESSION is the active session."
 
 
 
-(diff-lsp--set-priority 'gdscript -1)
-(diff-lsp--set-priority 'gdscript-tramp -1)
-(diff-lsp--set-priority 'diff-lsp-tramp -1)
-(diff-lsp--get-priority 'gdscript-tramp)
+(diff-lsp--set-priority 'diff-lsp 5)
+;; (diff-lsp--set-priority 'gdscript -1)
+;; (diff-lsp--set-priority 'gdscript-tramp -1)
+;; (diff-lsp--set-priority 'diff-lsp-tramp -1)
+;; (diff-lsp--get-priority 'gdscript-tramp)
+
+
+(diff-lsp--get-priority 'diff-lsp)
+
+
+(defun my-code-review-buffer-file-name (orig-fn &rest args)
+  (if (eq major-mode 'code-review-mode)
+      "/home/chris/gtdbot/diff-lsp-status.diff-test"
+    (apply orig-fn args)))
+
+(advice-add 'buffer-file-name :around #'my-code-review-buffer-file-name)
+
+(defun diff-lsp-clear-buffers ()
+  (interactive)
+  (kill-buffer "*diff-lsp*")
+  (kill-buffer "*diff-lsp::stderr*"))
+
+(define-key evil-normal-state-map (kbd ", d k") 'diff-lsp-clear-buffers)

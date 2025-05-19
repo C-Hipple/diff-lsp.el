@@ -44,6 +44,9 @@
   (add-to-list 'lsp-language-id-configuration
                '(magit-mode . "diff-lsp"))
 
+  (add-to-list 'lsp-language-id-configuration
+               '(code-reviewmode . "diff-lsp"))
+
 
   ;; (add-to-list 'lsp-language-id-configuration
   ;;              '(magit-status-mode . "diff-lsp"))
@@ -54,8 +57,7 @@
   (lsp-register-client
    (make-lsp-client :new-connection (lsp-stdio-connection "diff-lsp")
                     :activation-fn (lsp-activate-on "diff-lsp")
-                    :server-id 'diff-lsp)
-   )
+                    :server-id 'diff-lsp))
   )
 
 (with-eval-after-load 'eglot
@@ -77,13 +79,13 @@
 
 (defun dlsp--buffer-to-file (filename)
   (delete-file filename)
-  (let (
-        (contents (buffer-string))
-        (current_filename (buffer-name))
-        (project_name (projectile-project-name))
-        (root (projectile-project-root))
-        ;;(uri (eglot--uri-to-path current_filename))
-        )
+  (let* (
+         (contents (buffer-string))
+         (current_filename (buffer-name))
+         (project_name (projectile-project-name))
+         (root (projectile-project-root))
+         ;; (uri (eglot--uri-to-path current_filename))
+         )
     (with-temp-buffer
       (insertln (concat "Project: " current_filename))
       (insertln (concat "Root: " root))
