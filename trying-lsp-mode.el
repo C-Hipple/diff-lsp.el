@@ -361,7 +361,7 @@ SESSION is the active session."
 
 
 
-(diff-lsp--set-priority 'diff-lsp 5)
+;; (diff-lsp--set-priority 'diff-lsp 5)
 ;; (diff-lsp--set-priority 'gdscript -1)
 ;; (diff-lsp--set-priority 'gdscript-tramp -1)
 ;; (diff-lsp--set-priority 'diff-lsp-tramp -1)

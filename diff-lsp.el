@@ -45,8 +45,7 @@
                '(magit-mode . "diff-lsp"))
 
   (add-to-list 'lsp-language-id-configuration
-               '(code-reviewmode . "diff-lsp"))
-
+               '(code-review-mode . "diff-lsp"))
 
   ;; (add-to-list 'lsp-language-id-configuration
   ;;              '(magit-status-mode . "diff-lsp"))
@@ -72,12 +71,8 @@
                ;;`(diff-test-mode . ("lsp-example"))
                `(diff-test-mode . ("diff-lsp")))
   )
-(defun insertln (ln)
-  (insert ln)
-  (insert "\n")
-  )
 
-(defun dlsp--buffer-to-file (filename)
+(defun dlsp--buffer-to-temp-file (filename)
   (delete-file filename)
   (let* (
          (contents (buffer-string))
@@ -86,26 +81,21 @@
          (root (projectile-project-root))
          (buffer-type (replace-regexp-in-string "-mode" "" (prin1-to-string major-mode))))
     (with-temp-buffer
-      (insertln (concat "Project: " current_filename))
-      (insertln (concat "Root: " root))
-      (insertln (concat "Buffer: " project_name))
-      (insertln (concat "Type: " buffer-type))
+      (insert "Project:" ?\s current_filename ?\n)
+      (insert "Root:" ?\s root ?\n)
+      (insert "Buffer:" ?\s project_name ?\n)
+      (insert "Type:" ?\s buffer-type ?\n)
       (insert contents)
-      (write-file filename)
-      )
-    )
-  )
+      (write-file filename))))
 
 (lsp-register-client
  (make-lsp-client :new-connection (lsp-stdio-connection "diff-lsp")
                   :activation-fn (lsp-activate-on "diff-lsp")
-                  :server-id 'diff-lsp)
- )
+                  :server-id 'diff-lsp))
 
 (defun test-dlsp-fun ()
   (interactive)
-  (dlsp--buffer-to-file "~/diff-lsp/diff-lsp-status.diff-test")
-  )
+  (dlsp--buffer-to-temp-file "~/.diff-lsp-tempfile"))
 
 (defun diff-lsp--tail-logs (pipe-cmd)
   ;; Simple helper to immediately tail the logs when debugging
