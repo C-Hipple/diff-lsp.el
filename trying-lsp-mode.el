@@ -177,32 +177,14 @@ The library folders are defined by each client for each of the active workspace.
                (list workspace))))
 
 
-(defun lsp-f-same? (path-a path-b)
-  "Return t if PATH-A and PATH-B are references to the same file.
-Symlinks are not followed."
-  t
-  )
+(defun diff-lsp--lsp-f-same? (orig-fn &rest args)
+  "Override for lsp-f-same? which just returns true since we don't have real files to compare"
+  (if (eq major-mode 'code-review-mode)
+      t
+    (apply orig-fn args)))
 
+(advice-add 'lsp-f-same? :around #'diff-lsp--lsp-f-same?)
 
-;; (defun lsp-resolve-final-command (command &optional test?)
-;;   "Resolve final function COMMAND."
-;;   (message (concat "Tryihng to resolve teh command: " command))
-
-;;   (let* ((command (lsp-resolve-value command))
-;;          (command (cl-etypecase command
-;;                     (list
-;;                      (cl-assert (seq-every-p (apply-partially #'stringp) command) nil
-;;                                 "Invalid command list")
-;;                      command)
-;;                     (string (list command)))))
-;;     (if (and (file-remote-p default-directory) (not test?))
-;;         (list shell-file-name "-c"
-;;               (string-join (cons "stty raw > /dev/null;"
-;;                                  (mapcar #'shell-quote-argument command))
-;;                            " "))
-;;       (progn
-;;         (message (concat"resolved the command to: " (prin1-to-string command )))
-;;         command))))
 
 (defun diff-lsp--start-workspace (orig-fn &rest args)
   (if (eq major-mode 'code-review-mode)
@@ -214,7 +196,9 @@ Symlinks are not followed."
 (advice-remove 'lsp--start-workspace 'nil)
 
 ;; MAYBE: If I need to pass additional arguments to diff-lsp then I can do it here.
+;; Thinking something like directory to run it in (maybe okay since code-review-mode sets the cwd?)
 ;; (defun diff-lsp--lsp-resolve-final-command (orig-fn &rest args)
+
 ;;   (if (eq major-mode 'code-review-mode)
 ;;       ("diff-lsp")
 ;;     (apply orig-fn args)))
