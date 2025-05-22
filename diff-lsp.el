@@ -104,8 +104,6 @@
     (when (not (string= pipe-cmd "")) (setq command (concat command " | " pipe-cmd)))
     (compile command)))
 
-
-
 ;; f l for files - logs, i guess
 (define-key evil-normal-state-map (kbd ", f l") 'diff-lsp--tail-logs)
 
