@@ -27,6 +27,10 @@
 
 ;;; Code:
 
+(defvar diff-lsp-tempfile-name "~/.diff-lsp-tempfile"
+  ;; TODO: Make this proper temp file directory /tmp/.diff-lsp ?
+  "the tempfile which syncs the emphermal buffer with diff-lsp")
+
 ;; Initial version is just for getting the lsp setup and configured.
 (define-derived-mode diff-test-mode markdown-mode
   "diff-test-mode"
@@ -72,7 +76,8 @@
                `(diff-test-mode . ("diff-lsp")))
   )
 
-(defun dlsp--buffer-to-temp-file (filename)
+(defun diff-lsp--buffer-to-temp-file (filename)
+  (message (concat "Writing buffer to " filename))
   (delete-file filename)
   (let* (
          (contents (buffer-string))
@@ -95,7 +100,7 @@
 
 (defun test-dlsp-fun ()
   (interactive)
-  (dlsp--buffer-to-temp-file "~/.diff-lsp-tempfile"))
+  (diff-lsp--buffer-to-temp-file "~/.diff-lsp-tempfile"))
 
 (defun diff-lsp--tail-logs (pipe-cmd)
   ;; Simple helper to immediately tail the logs when debugging

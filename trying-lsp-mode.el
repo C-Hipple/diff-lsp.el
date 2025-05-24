@@ -3,6 +3,14 @@
   "code-review.diff-test"
   )
 
+
+(defun diff-lsp--entrypoint (orig-fn &rest args)
+  "patch function which sets up diff lsp before starting the lsp"
+  (diff-lsp--buffer-to-temp-file diff-lsp-tempfile-name)
+  (apply orig-fn args))
+
+(advice-add 'lsp :around #'diff-lsp--entrypoint)
+
 ;; This function is analogous to the standard "lsp"
 ;; heavily edited so i don't break other stuff
 ;; (defun diff-lsp-entrypoint (&optional arg)
@@ -113,9 +121,6 @@
 
 ;; (define-key evil-normal-state-map (kbd ", d s") 'diff-lsp-entrypoint)
 
-
-(defun lsp--filter-clients (pred)
-  (->> lsp-clients hash-table-values (-filter pred)))
 
 ;; (defun lsp--find-clients ()
 ;;   "Find clients which can handle current buffer."
@@ -327,24 +332,11 @@ SESSION is the active session."
 ;;     (lsp--path-to-uri-1 path)))
 
 
-(defun diff-lsp--set-priority (server priority)
-  (setf (lsp--client-priority (gethash server lsp-clients)) priority))
-
-(defun diff-lsp--get-priority (server)
-  (lsp--client-priority (gethash server lsp-clients)))
-
-
-;; (diff-lsp--set-priority 'diff-lsp 0)
-;; (diff-lsp--set-priority 'gdscript -1)
-;; (diff-lsp--set-priority 'gdscript-tramp -1)
-;; (diff-lsp--set-priority 'diff-lsp-tramp -1)
-;; (diff-lsp--get-priority 'gdscript-tramp)
-
-
-;; (diff-lsp--get-priority 'diff-lsp)
 
 (defun diff-lsp--client-priority (orig-fn &rest args)
+  "Needing this patched suggests I'm missing something in the language setup, probably something in filtering available servers types.  Must be like a nil or something which means that un-assigned but defined server types are eligible for this?"
   (if (eq major-mode 'code-review-mode)
+      ;; Some really high number.
       10
     (apply orig-fn args)))
 
