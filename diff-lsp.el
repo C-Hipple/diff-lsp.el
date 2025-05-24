@@ -125,6 +125,8 @@
       diff-lsp-tempfile-name
     (apply orig-fn args)))
 
+(advice-add 'buffer-file-name :around #'diff-lsp--buffer-file-name)
+
 (defun diff-lsp--dap--after-open (orig-fn &rest args)
   (if (eq major-mode 'code-review-mode)
       (message "Skipping setting up dap for diff-lsp tempfile.")
@@ -132,7 +134,6 @@
 
 (advice-add 'dap--after-open :around #'diff-lsp--dap--after-open)
 
-(advice-add 'buffer-file-name :around #'diff-lsp--buffer-file-name)
 
 (provide 'diff-lsp)
 ;;; test.el ends here
