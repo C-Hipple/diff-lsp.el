@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.1
+;; Version: 0.0.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -33,6 +33,9 @@
 
 ;; Initial version is just for getting the lsp setup and configured.
 
+(defun diff-lsp--valid-buffer ()
+  "checks the major mode to see if we should apply diff-lsp overrides"
+  (not (null (member major-mode '(code-review-mode magit-status-mode)))))
 
 (with-eval-after-load 'lsp-mode
   (add-to-list 'lsp-language-id-configuration
@@ -43,8 +46,8 @@
   ;; (add-to-list 'lsp-language-id-configuration
   ;;              '(magit-status-mode . "diff-lsp"))
 
-  ;; (add-to-list 'lsp-language-id-configuration
-  ;;              '(magit-mode . "diff-lsp"))
+  (add-to-list 'lsp-language-id-configuration
+               '(magit-status-mode . "diff-lsp"))
 
   (add-to-list 'lsp-language-id-configuration
                '(code-review-mode . "diff-lsp"))
@@ -70,6 +73,7 @@
       (insert contents)
       (write-file filename))))
 
+(add-hook 'code-review-mode-hook 'diff-lsp--buffer-to-temp-file)
 
 ;;;###autoload
 (defun diff-lsp--tail-logs (pipe-cmd)
@@ -93,7 +97,7 @@
 
 (defun diff-lsp--lsp-f-same? (orig-fn &rest args)
   "Override for lsp-f-same? which just returns true since we don't have real files to compare"
-  (if (eq major-mode 'code-review-mode)
+  (if (diff-lsp--valid-buffer)
       t
     (apply orig-fn args)))
 
@@ -104,7 +108,7 @@
 ;;   (projectile-project-root))
 
 (defun diff-lsp--calculate-root (orig-fn &rest args)
-  (if (eq major-mode 'code-review-mode)
+  (if (diff-lsp--valid-buffer)
       ;; (apply #'diff-lsp--patch-calculate-root args)
       (projectile-project-root)
     (apply orig-fn args)))
@@ -113,7 +117,7 @@
 
 (defun diff-lsp--client-priority (orig-fn &rest args)
   "Needing this patched suggests I'm missing something in the language setup, probably something in filtering available servers types.  Must be like a nil or something which means that un-assigned but defined server types are eligible for this?"
-  (if (eq major-mode 'code-review-mode)
+  (if (diff-lsp--valid-buffer)
       ;; Some really high number.
       10
     (apply orig-fn args)))
@@ -121,14 +125,14 @@
 (advice-add 'lsp--client-priority :around #'diff-lsp--client-priority)
 
 (defun diff-lsp--buffer-file-name (orig-fn &rest args)
-  (if (eq major-mode 'code-review-mode)
+  (if (diff-lsp--valid-buffer)
       diff-lsp-tempfile-name
     (apply orig-fn args)))
 
 (advice-add 'buffer-file-name :around #'diff-lsp--buffer-file-name)
 
 (defun diff-lsp--dap--after-open (orig-fn &rest args)
-  (if (eq major-mode 'code-review-mode)
+  (if (diff-lsp--valid-buffer)
       (message "Skipping setting up dap for diff-lsp tempfile.")
     (apply orig-fn args)))
 
