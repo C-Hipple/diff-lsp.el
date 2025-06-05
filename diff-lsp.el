@@ -138,6 +138,15 @@
 
 (advice-add 'dap--after-open :around #'diff-lsp--dap--after-open)
 
+(defun diff-lsp--cur-line(orig-fn &rest args)
+  "Wrapper which offsets the line to account for the extra lines we added above to communicate with diff-lsp."
+  (if (diff-lsp--valid-buffer)
+      ;; we add 3 here, since it's usually -1 to accoutn for 1 index of editor, but we add 4 lines
+      ;; in the buffer to temp file.
+      (+ (line-number-at-pos) 3)
+    (apply orig-fn args)))
+
+(advice-add 'lsp--cur-line :around #'diff-lsp--cur-line)
 
 (provide 'diff-lsp)
-;;; test.el ends here
+;;; diff-lsp.el ends here
