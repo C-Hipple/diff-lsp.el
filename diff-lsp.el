@@ -73,7 +73,8 @@
       (insert contents)
       (write-file filename))))
 
-(add-hook 'code-review-mode-hook 'diff-lsp--buffer-to-temp-file)
+;; (remove-hook 'code-review-mode-hook 'diff-lsp--buffer-to-temp-file)
+;; (add-hook 'code-review-mode-hook 'diff-lsp--buffer-to-temp-file)
 
 ;;;###autoload
 (defun diff-lsp--tail-logs (pipe-cmd)
@@ -147,6 +148,31 @@
     (apply orig-fn args)))
 
 (advice-add 'lsp--cur-line :around #'diff-lsp--cur-line)
+
+(defun diff-lsp--text-document-did-close (orig-fn &rest args)
+  (if (diff-lsp--valid-buffer)
+      (progn
+        (message (mapconcat #'prin1-to-string args))
+        (message "Skipping textDocument/didClose for diff-lsp tempfile."))
+    (apply orig-fn args)))
+
+(advice-add 'lsp--text-document-did-close :around #'diff-lsp--text-document-did-close)
+;; (advice-remove 'lsp--text-document-did-close #'diff-lsp--text-document-did-close)
+
+(defun diff-lsp--disconnect (orig-fn &rest args)
+  (if (diff-lsp--valid-buffer)
+      (message "Skipping lsp-disconnect for diff-lsp tempfile.")
+    (apply orig-fn args)))
+
+(advice-add 'lsp-disconnect :around #'diff-lsp--disconnect)
+
+;; I DON't think i actually need this one
+(defun diff-lsp--after-set-visited-file-name (orig-fn &rest args)
+  (if (diff-lsp--valid-buffer)
+      (message "Skipping lsp--after-set-visited-file-name for diff-lsp tempfile.")
+    (apply orig-fn args)))
+
+(advice-add 'lsp--after-set-visited-file-name :around #'diff-lsp--after-set-visited-file-name)
 
 (provide 'diff-lsp)
 ;;; diff-lsp.el ends here
