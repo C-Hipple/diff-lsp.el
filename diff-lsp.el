@@ -41,11 +41,6 @@
   (add-to-list 'lsp-language-id-configuration
                '(diff-test-mode . "diff-lsp"))
 
-  ;; TODO: Magit support.
-  ;; Will involve adjusting advices will new diff-lsp--apply-overrides? helper)
-  ;; (add-to-list 'lsp-language-id-configuration
-  ;;              '(magit-status-mode . "diff-lsp"))
-
   (add-to-list 'lsp-language-id-configuration
                '(magit-status-mode . "diff-lsp"))
 
@@ -73,7 +68,8 @@
       (insert contents)
       (write-file filename))))
 
-(add-hook 'code-review-mode-hook 'diff-lsp--buffer-to-temp-file)
+;; (remove-hook 'code-review-mode-hook 'diff-lsp--buffer-to-temp-file)
+;; (add-hook 'code-review-mode-hook 'diff-lsp--buffer-to-temp-file)
 
 ;;;###autoload
 (defun diff-lsp--tail-logs (pipe-cmd)
@@ -86,10 +82,16 @@
 ;; f l for files - logs, i guess
 (define-key evil-normal-state-map (kbd ", f l") 'diff-lsp--tail-logs)
 
+;;;###autoload
+(defun diff-lsp-refresh()
+  "Calls the refresh custom command on diff-lsp.  you shouldn't actually need this but just to show off the capability"
+  (lsp-send-execute-command "refresh"))
+
 
 ;; Below are a series of advice patches which support an LSP client for a buffer not visiting a file.
 (defun diff-lsp--entrypoint (orig-fn &rest args)
   "patch function which sets up diff lsp before starting the lsp"
+  (message "Doing diff-lsp entrypoint")
   (diff-lsp--buffer-to-temp-file diff-lsp-tempfile-name)
   (apply orig-fn args))
 
@@ -147,6 +149,39 @@
     (apply orig-fn args)))
 
 (advice-add 'lsp--cur-line :around #'diff-lsp--cur-line)
+
+(defun diff-lsp--text-document-did-close (orig-fn &rest args)
+  (if (diff-lsp--valid-buffer)
+      (progn
+        ;; (message (mapconcat #'prin1-to-string args))
+        (message "Skipping textDocument/didClose for diff-lsp tempfile.")
+        (lsp-notify "textDocument/didClose"
+                    `(:textDocument ,(lsp--text-document-identifier))))
+    (apply orig-fn args)))
+
+(advice-add 'lsp--text-document-did-close :around #'diff-lsp--text-document-did-close)
+
+(defun diff-lsp--disconnect (orig-fn &rest args)
+  (if (diff-lsp--valid-buffer)
+      (message "Skipping lsp-disconnect for diff-lsp tempfile.")
+    (apply orig-fn args)))
+
+(advice-add 'lsp-disconnect :around #'diff-lsp--disconnect)
+
+;; I DON't think i actually need this one
+(defun diff-lsp--after-set-visited-file-name (orig-fn &rest args)
+  (if (diff-lsp--valid-buffer)
+      (message "Skipping lsp--after-set-visited-file-name for diff-lsp tempfile.")
+    (apply orig-fn args)))
+
+(advice-add 'lsp--after-set-visited-file-name :around #'diff-lsp--after-set-visited-file-name)
+
+
+;; And finally:
+;; This is needed for both on startup and when we re-draw the buffer after each comment is added/removed
+;; however, since the diff-lsp process wasn't stopped, we just reconnect to it via the built in
+;; lsp-mode workspaces.
+(add-hook 'code-review-mode-hook #'lsp)
 
 (provide 'diff-lsp)
 ;;; diff-lsp.el ends here

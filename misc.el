@@ -21,3 +21,4 @@
 
 
 (define-key evil-normal-state-map (kbd ", d k") 'diff-lsp-clear-buffers)
+(define-key code-review-mode-map (kbd ", d k") 'diff-lsp-clear-buffers)
