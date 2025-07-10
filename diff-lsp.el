@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.6
+;; Version: 0.0.7
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -165,20 +165,10 @@
       (message "Skipping lsp--after-set-visited-file-name for diff-lsp tempfile.")
     (apply orig-fn args)))
 
-;; (with-eval-after-load 'code-review
-;;   (advice-add 'lsp :around #'diff-lsp--entrypoint)
-;;   (advice-add 'lsp-f-same? :around #'diff-lsp--lsp-f-same?)
-;;   (advice-add 'lsp--calculate-root :around #'diff-lsp--calculate-root)
-;;   (advice-add 'lsp--client-priority :around #'diff-lsp--client-priority)
-;;   (advice-add 'buffer-file-name :around #'diff-lsp--buffer-file-name)
-;;   (advice-add 'dap--after-open :around #'diff-lsp--dap--after-open)
-;;   (advice-add 'lsp--cur-line :around #'diff-lsp--cur-line)
-;;   (advice-add 'lsp--text-document-did-close :around #'diff-lsp--text-document-did-close)
-;;   (advice-add 'lsp-disconnect :around #'diff-lsp--disconnect)
-;;   (advice-add 'lsp--after-set-visited-file-name :around #'diff-lsp--after-set-visited-file-name))
-
 ;;;###autoload
 (defun diff-lsp-setup-advice()
+  "Call this function or add a call to it in your init to "
+
   (advice-add 'lsp :around #'diff-lsp--entrypoint)
   (advice-add 'lsp-f-same? :around #'diff-lsp--lsp-f-same?)
   (advice-add 'lsp--calculate-root :around #'diff-lsp--calculate-root)
@@ -188,13 +178,28 @@
   (advice-add 'lsp--cur-line :around #'diff-lsp--cur-line)
   (advice-add 'lsp--text-document-did-close :around #'diff-lsp--text-document-did-close)
   (advice-add 'lsp-disconnect :around #'diff-lsp--disconnect)
-  (advice-add 'lsp--after-set-visited-file-name :around #'diff-lsp--after-set-visited-file-name))
+  (advice-add 'lsp--after-set-visited-file-name :around #'diff-lsp--after-set-visited-file-name)
+  ;; And finally:
+  ;; This is needed for both on startup and when we re-draw the buffer after each comment is added/removed
+  ;; however, since the diff-lsp process wasn't stopped, we just reconnect to it via the built in
+  ;; lsp-mode workspaces.
+  (add-hook 'code-review-mode-hook #'lsp))
 
-;; And finally:
-;; This is needed for both on startup and when we re-draw the buffer after each comment is added/removed
-;; however, since the diff-lsp process wasn't stopped, we just reconnect to it via the built in
-;; lsp-mode workspaces.
-(add-hook 'code-review-mode-hook #'lsp)
+;;;###autoload
+(defun diff-lsp-remove-advice ()
+  "Remove all diff-lsp advice added by `diff-lsp-setup-advice`."
+  (interactive)
+  (advice-remove 'lsp #'diff-lsp--entrypoint)
+  (advice-remove 'lsp-f-same? #'diff-lsp--lsp-f-same?)
+  (advice-remove 'lsp--calculate-root #'diff-lsp--calculate-root)
+  (advice-remove 'lsp--client-priority #'diff-lsp--client-priority)
+  (advice-remove 'buffer-file-name #'diff-lsp--buffer-file-name)
+  (advice-remove 'dap--after-open #'diff-lsp--dap--after-open)
+  (advice-remove 'lsp--cur-line #'diff-lsp--cur-line)
+  (advice-remove 'lsp--text-document-did-close #'diff-lsp--text-document-did-close)
+  (advice-remove 'lsp-disconnect #'diff-lsp--disconnect)
+  (advice-remove 'lsp--after-set-visited-file-name #'diff-lsp--after-set-visited-file-name)
+  (remove-hook 'code-review-mode-hook #'lsp))
 
 (provide 'diff-lsp)
 ;;; diff-lsp.el ends here
