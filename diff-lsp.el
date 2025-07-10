@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.5
+;; Version: 0.0.6
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -95,7 +95,6 @@
   (diff-lsp--buffer-to-temp-file diff-lsp-tempfile-name)
   (apply orig-fn args))
 
-(advice-add 'lsp :around #'diff-lsp--entrypoint)
 
 (defun diff-lsp--lsp-f-same? (orig-fn &rest args)
   "Override for lsp-f-same? which just returns true since we don't have real files to compare"
@@ -103,7 +102,6 @@
       t
     (apply orig-fn args)))
 
-(advice-add 'lsp-f-same? :around #'diff-lsp--lsp-f-same?)
 
 
 ;; (defun diff-lsp--patch-calculate-root (&optional x y)
@@ -115,7 +113,6 @@
       (projectile-project-root)
     (apply orig-fn args)))
 
-(advice-add 'lsp--calculate-root :around #'diff-lsp--calculate-root)
 
 (defun diff-lsp--client-priority (orig-fn &rest args)
   "Needing this patched suggests I'm missing something in the language setup, probably something in filtering available servers types.  Must be like a nil or something which means that un-assigned but defined server types are eligible for this?"
@@ -124,21 +121,18 @@
       10
     (apply orig-fn args)))
 
-(advice-add 'lsp--client-priority :around #'diff-lsp--client-priority)
 
 (defun diff-lsp--buffer-file-name (orig-fn &rest args)
   (if (diff-lsp--valid-buffer)
       diff-lsp-tempfile-name
     (apply orig-fn args)))
 
-(advice-add 'buffer-file-name :around #'diff-lsp--buffer-file-name)
 
 (defun diff-lsp--dap--after-open (orig-fn &rest args)
   (if (diff-lsp--valid-buffer)
       (message "Skipping setting up dap for diff-lsp tempfile.")
     (apply orig-fn args)))
 
-(advice-add 'dap--after-open :around #'diff-lsp--dap--after-open)
 
 (defun diff-lsp--cur-line(orig-fn &rest args)
   "Wrapper which offsets the line to account for the extra lines we added above to communicate with diff-lsp."
@@ -148,7 +142,6 @@
       (+ (line-number-at-pos) 3)
     (apply orig-fn args)))
 
-(advice-add 'lsp--cur-line :around #'diff-lsp--cur-line)
 
 (defun diff-lsp--text-document-did-close (orig-fn &rest args)
   (if (diff-lsp--valid-buffer)
@@ -159,14 +152,12 @@
                     `(:textDocument ,(lsp--text-document-identifier))))
     (apply orig-fn args)))
 
-(advice-add 'lsp--text-document-did-close :around #'diff-lsp--text-document-did-close)
 
 (defun diff-lsp--disconnect (orig-fn &rest args)
   (if (diff-lsp--valid-buffer)
       (message "Skipping lsp-disconnect for diff-lsp tempfile.")
     (apply orig-fn args)))
 
-(advice-add 'lsp-disconnect :around #'diff-lsp--disconnect)
 
 ;; I DON't think i actually need this one
 (defun diff-lsp--after-set-visited-file-name (orig-fn &rest args)
@@ -174,8 +165,30 @@
       (message "Skipping lsp--after-set-visited-file-name for diff-lsp tempfile.")
     (apply orig-fn args)))
 
-(advice-add 'lsp--after-set-visited-file-name :around #'diff-lsp--after-set-visited-file-name)
+;; (with-eval-after-load 'code-review
+;;   (advice-add 'lsp :around #'diff-lsp--entrypoint)
+;;   (advice-add 'lsp-f-same? :around #'diff-lsp--lsp-f-same?)
+;;   (advice-add 'lsp--calculate-root :around #'diff-lsp--calculate-root)
+;;   (advice-add 'lsp--client-priority :around #'diff-lsp--client-priority)
+;;   (advice-add 'buffer-file-name :around #'diff-lsp--buffer-file-name)
+;;   (advice-add 'dap--after-open :around #'diff-lsp--dap--after-open)
+;;   (advice-add 'lsp--cur-line :around #'diff-lsp--cur-line)
+;;   (advice-add 'lsp--text-document-did-close :around #'diff-lsp--text-document-did-close)
+;;   (advice-add 'lsp-disconnect :around #'diff-lsp--disconnect)
+;;   (advice-add 'lsp--after-set-visited-file-name :around #'diff-lsp--after-set-visited-file-name))
 
+;;;###autoload
+(defun diff-lsp-setup-advice()
+  (advice-add 'lsp :around #'diff-lsp--entrypoint)
+  (advice-add 'lsp-f-same? :around #'diff-lsp--lsp-f-same?)
+  (advice-add 'lsp--calculate-root :around #'diff-lsp--calculate-root)
+  (advice-add 'lsp--client-priority :around #'diff-lsp--client-priority)
+  (advice-add 'buffer-file-name :around #'diff-lsp--buffer-file-name)
+  (advice-add 'dap--after-open :around #'diff-lsp--dap--after-open)
+  (advice-add 'lsp--cur-line :around #'diff-lsp--cur-line)
+  (advice-add 'lsp--text-document-did-close :around #'diff-lsp--text-document-did-close)
+  (advice-add 'lsp-disconnect :around #'diff-lsp--disconnect)
+  (advice-add 'lsp--after-set-visited-file-name :around #'diff-lsp--after-set-visited-file-name))
 
 ;; And finally:
 ;; This is needed for both on startup and when we re-draw the buffer after each comment is added/removed
