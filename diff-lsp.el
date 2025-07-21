@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.7
+;; Version: 0.0.8
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -33,9 +33,14 @@
 
 ;; Initial version is just for getting the lsp setup and configured.
 
+(defvar diff-lsp-major-modes
+  '(code-review-mode)
+  "Major modes for which diff-lsp overrides should be applied.
+Users can customize this list.")
+
 (defun diff-lsp--valid-buffer ()
   "checks the major mode to see if we should apply diff-lsp overrides"
-  (not (null (member major-mode '(code-review-mode magit-status-mode)))))
+  (not (null (member major-mode diff-lsp-major-modes))))
 
 (with-eval-after-load 'lsp-mode
   (add-to-list 'lsp-language-id-configuration

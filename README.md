@@ -21,6 +21,24 @@ To remove it, run
 (diff-lsp-remove-advice)
 ```
 
+
+## Configuration
+
+You can tweak your tempfile name if you so desire via adjusting.
+
+```elisp
+(setq diff-lsp-tempfile-name "~/.diff-lsp-tempfile")
+```
+
+You can also adjust which major modes are active using.  Default value is code-review-mode only.
+
+```elisp
+(setq diff-lsp-major-modes '(code-review-mode magit-status-mode))
+```
+
+
+
+
 ## Installation
 
 Not currently available on MELPA or other repositories.  You can use your favorite package manager to install directly from github.
