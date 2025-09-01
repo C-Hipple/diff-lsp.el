@@ -27,9 +27,13 @@
 
 ;;; Code:
 
-(defvar diff-lsp-tempfile-name "~/.diff-lsp-tempfile"
-  ;; TODO: Make this proper temp file directory /tmp/.diff-lsp ?
-  "the tempfile which syncs the emphermal buffer with diff-lsp")
+(defvar diff-lsp-tempfile-dir "/tmp/"
+  "defines where the tempfiles for diff-lsp are stored.")
+
+(defun diff-lsp--tempfile-name ()
+  (if (string-suffix-p "/" diff-lsp-tempfile-dir)
+      (concat diff-lsp-tempfile-dir (sha1 (buffer-name)))
+    (concat diff-lsp-tempfile-dir "/" (sha1 (buffer-name)))))
 
 ;; Initial version is just for getting the lsp setup and configured.
 
@@ -98,7 +102,7 @@ Users can customize this list.")
   "patch function which sets up diff lsp before starting the lsp"
   (message "Doing diff-lsp entrypoint")
   (when (diff-lsp--valid-buffer)
-    (diff-lsp--buffer-to-temp-file diff-lsp-tempfile-name))
+    (diff-lsp--buffer-to-temp-file diff-lsp-tempfile-dir))
   (apply orig-fn args))
 
 
@@ -130,7 +134,7 @@ Users can customize this list.")
 
 (defun diff-lsp--buffer-file-name (orig-fn &rest args)
   (if (diff-lsp--valid-buffer)
-      diff-lsp-tempfile-name
+      diff-lsp-tempfile-dir
     (apply orig-fn args)))
 
 

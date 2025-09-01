@@ -24,10 +24,10 @@ To remove it, run
 
 ## Configuration
 
-You can tweak your tempfile name if you so desire via adjusting.
+You can tweak your tempfile location if you so desire via adjusting.  The default value is `/tmp/`
 
 ```elisp
-(setq diff-lsp-tempfile-name "~/.diff-lsp-tempfile")
+(setq diff-lsp-tempfile-dir "/.diff-lsp/")
 ```
 
 You can also adjust which major modes are active using.  Default value is code-review-mode only.
