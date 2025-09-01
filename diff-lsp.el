@@ -97,7 +97,8 @@ Users can customize this list.")
 (defun diff-lsp--entrypoint (orig-fn &rest args)
   "patch function which sets up diff lsp before starting the lsp"
   (message "Doing diff-lsp entrypoint")
-  (diff-lsp--buffer-to-temp-file diff-lsp-tempfile-name)
+  (when (diff-lsp--valid-buffer)
+    (diff-lsp--buffer-to-temp-file diff-lsp-tempfile-name))
   (apply orig-fn args))
 
 
