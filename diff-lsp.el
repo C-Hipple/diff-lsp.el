@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.8
+;; Version: 0.0.9
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -96,13 +96,18 @@ Users can customize this list.")
   "Calls the refresh custom command on diff-lsp.  you shouldn't actually need this but just to show off the capability"
   (lsp-send-execute-command "refresh"))
 
+;;;###autoload
+(defun diff-lsp-fetch()
+  "Calls the fetch custom command on diff-lsp.  you shouldn't actually need this but just to show off the capability"
+  (lsp-send-execute-command "fetch"))
+
 
 ;; Below are a series of advice patches which support an LSP client for a buffer not visiting a file.
 (defun diff-lsp--entrypoint (orig-fn &rest args)
   "patch function which sets up diff lsp before starting the lsp"
   (message "Doing diff-lsp entrypoint")
   (when (diff-lsp--valid-buffer)
-    (diff-lsp--buffer-to-temp-file diff-lsp-tempfile-dir))
+    (diff-lsp--buffer-to-temp-file (diff-lsp--tempfile-name)))
   (apply orig-fn args))
 
 
@@ -134,7 +139,7 @@ Users can customize this list.")
 
 (defun diff-lsp--buffer-file-name (orig-fn &rest args)
   (if (diff-lsp--valid-buffer)
-      diff-lsp-tempfile-dir
+      (diff-lsp--tempfile-name)
     (apply orig-fn args)))
 
 
