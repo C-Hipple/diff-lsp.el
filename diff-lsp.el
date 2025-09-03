@@ -89,15 +89,18 @@ Users can customize this list.")
     (compile command)))
 
 ;; f l for files - logs, i guess
-(define-key evil-normal-state-map (kbd ", f l") 'diff-lsp--tail-logs)
+(define-key evil-motion-state-map (kbd ",") nil) ;; leader key issues.  Don't care about this one
+(define-key evil-motion-state-map (kbd ", f l") 'diff-lsp--tail-logs)
 
 ;;;###autoload
-(defun diff-lsp-refresh()
+(defun diff-lsp-refresh ()
+  (interactive)
   "Calls the refresh custom command on diff-lsp.  you shouldn't actually need this but just to show off the capability"
   (lsp-send-execute-command "refresh"))
 
 ;;;###autoload
-(defun diff-lsp-fetch()
+(defun diff-lsp-fetch ()
+  (interactive)
   "Calls the fetch custom command on diff-lsp.  you shouldn't actually need this but just to show off the capability"
   (lsp-send-execute-command "fetch"))
 
