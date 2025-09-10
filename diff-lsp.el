@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.9
+;; Version: 0.0.10
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -108,7 +108,6 @@ Users can customize this list.")
 ;; Below are a series of advice patches which support an LSP client for a buffer not visiting a file.
 (defun diff-lsp--entrypoint (orig-fn &rest args)
   "patch function which sets up diff lsp before starting the lsp"
-  (message "Doing diff-lsp entrypoint")
   (when (diff-lsp--valid-buffer)
     (diff-lsp--buffer-to-temp-file (diff-lsp--tempfile-name)))
   (apply orig-fn args))
