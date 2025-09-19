@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.8
+;; Version: 0.0.11
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -27,15 +27,24 @@
 
 ;;; Code:
 
-(defvar diff-lsp-tempfile-name "~/.diff-lsp-tempfile"
-  ;; TODO: Make this proper temp file directory /tmp/.diff-lsp ?
-  "the tempfile which syncs the emphermal buffer with diff-lsp")
+(defvar diff-lsp-tempfile-dir "/tmp/"
+  "defines where the tempfiles for diff-lsp are stored.")
+
+(defun diff-lsp--tempfile-name ()
+  (if (string-suffix-p "/" diff-lsp-tempfile-dir)
+      (concat diff-lsp-tempfile-dir (sha1 (buffer-name)))
+    (concat diff-lsp-tempfile-dir "/" (sha1 (buffer-name)))))
 
 ;; Initial version is just for getting the lsp setup and configured.
 
+(defvar diff-lsp-major-modes
+  '(code-review-mode)
+  "Major modes for which diff-lsp overrides should be applied.
+Users can customize this list.")
+
 (defun diff-lsp--valid-buffer ()
   "checks the major mode to see if we should apply diff-lsp overrides"
-  (not (null (member major-mode '(code-review-mode magit-status-mode)))))
+  (not (null (member major-mode diff-lsp-major-modes))))
 
 (with-eval-after-load 'lsp-mode
   (add-to-list 'lsp-language-id-configuration
@@ -80,19 +89,27 @@
     (compile command)))
 
 ;; f l for files - logs, i guess
+(define-key evil-motion-state-map (kbd ",") nil) ;; leader key issues.  Don't care about this one
 (define-key evil-motion-state-map (kbd ", f l") 'diff-lsp--tail-logs)
 
 ;;;###autoload
-(defun diff-lsp-refresh()
+(defun diff-lsp-refresh ()
+  (interactive)
   "Calls the refresh custom command on diff-lsp.  you shouldn't actually need this but just to show off the capability"
   (lsp-send-execute-command "refresh"))
+
+;;;###autoload
+(defun diff-lsp-fetch ()
+  (interactive)
+  "Calls the fetch custom command on diff-lsp.  you shouldn't actually need this but just to show off the capability"
+  (lsp-send-execute-command "fetch"))
 
 
 ;; Below are a series of advice patches which support an LSP client for a buffer not visiting a file.
 (defun diff-lsp--entrypoint (orig-fn &rest args)
   "patch function which sets up diff lsp before starting the lsp"
-  (message "Doing diff-lsp entrypoint")
-  (diff-lsp--buffer-to-temp-file diff-lsp-tempfile-name)
+  (when (diff-lsp--valid-buffer)
+    (diff-lsp--buffer-to-temp-file (diff-lsp--tempfile-name)))
   (apply orig-fn args))
 
 
@@ -124,7 +141,7 @@
 
 (defun diff-lsp--buffer-file-name (orig-fn &rest args)
   (if (diff-lsp--valid-buffer)
-      diff-lsp-tempfile-name
+      (diff-lsp--tempfile-name)
     (apply orig-fn args)))
 
 
