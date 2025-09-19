@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.7
+;; Version: 0.0.8
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@
     (compile command)))
 
 ;; f l for files - logs, i guess
-(define-key evil-normal-state-map (kbd ", f l") 'diff-lsp--tail-logs)
+(define-key evil-motion-state-map (kbd ", f l") 'diff-lsp--tail-logs)
 
 ;;;###autoload
 (defun diff-lsp-refresh()
@@ -139,7 +139,8 @@
   (if (diff-lsp--valid-buffer)
       ;; we add 3 here, since it's usually -1 to accoutn for 1 index of editor, but we add 4 lines
       ;; in the buffer to temp file.
-      (+ (line-number-at-pos) 3)
+      ;; update: We add 4, I'm not sure what changed, maybe someting from underlying diffs
+      (+ (line-number-at-pos) 4)
     (apply orig-fn args)))
 
 
