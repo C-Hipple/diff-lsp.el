@@ -1,12 +1,16 @@
-(define-derived-mode diff-test-mode markdown-mode
-  "diff-test-mode")
+(define-derived-mode prbody-mode markdown-mode
+  "prbody-mode")
+
+(with-eval-after-load 'lsp-mode
+  (add-to-list 'lsp-language-id-configuration
+               '(prbody-mode . "lsp-example")))
 
 (lsp-register-client
- (make-lsp-client :new-connection (lsp-stdio-connection "diff-lsp")
-                  :activation-fn (lsp-activate-on "diff-lsp")
-                  :server-id 'diff-lsp))
+ (make-lsp-client :new-connection (lsp-stdio-connection "lsp-example")
+                  :activation-fn (lsp-activate-on "lsp-example")
+                  :server-id 'lsp-example))
 
-(add-to-list 'auto-mode-alist '("\\.diff-test\\'" . diff-test-mode))
+(add-to-list 'auto-mode-alist '("\\.prbody\\'" . prbody-mode))
 
 
 (defun test-dlsp-fun ()

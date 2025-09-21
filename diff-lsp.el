@@ -156,7 +156,8 @@ Users can customize this list.")
   (if (diff-lsp--valid-buffer)
       ;; we add 3 here, since it's usually -1 to accoutn for 1 index of editor, but we add 4 lines
       ;; in the buffer to temp file.
-      (+ (line-number-at-pos) 4) ;; No idea why 4 now seems to be correct, I didn't change anything
+      ;; update: We add 4, I'm not sure what changed, maybe someting from underlying diffs
+      (+ (line-number-at-pos) 4)
     (apply orig-fn args)))
 
 
