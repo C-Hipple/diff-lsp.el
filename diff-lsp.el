@@ -157,7 +157,8 @@ Users can customize this list.")
       ;; we add 3 here, since it's usually -1 to accoutn for 1 index of editor, but we add 4 lines
       ;; in the buffer to temp file.
       ;; update: We add 4, I'm not sure what changed, maybe someting from underlying diffs
-      (+ (line-number-at-pos) 4)
+      ;; update again, seems to be 3 again on my personal pc? atleast for this rust proejct
+      (+ (line-number-at-pos) 3)
     (apply orig-fn args)))
 
 
