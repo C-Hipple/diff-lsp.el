@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.10
+;; Version: 0.0.11
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@
 
 (defun diff-lsp--tempfile-name ()
   (if (string-suffix-p "/" diff-lsp-tempfile-dir)
-      (concat diff-lsp-tempfile-dir (sha1 (buffer-name)))
+      (concat diff-lsp-tempfile-dir "diff_lsp_" (sha1 (buffer-name)))
     (concat diff-lsp-tempfile-dir "/" (sha1 (buffer-name)))))
 
 ;; Initial version is just for getting the lsp setup and configured.
@@ -156,7 +156,7 @@ Users can customize this list.")
   (if (diff-lsp--valid-buffer)
       ;; we add 3 here, since it's usually -1 to accoutn for 1 index of editor, but we add 4 lines
       ;; in the buffer to temp file.
-      (+ (line-number-at-pos) 3)
+      (+ (line-number-at-pos) 4) ;; No idea why 4 now seems to be correct, I didn't change anything
     (apply orig-fn args)))
 
 
