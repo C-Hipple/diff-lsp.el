@@ -194,8 +194,7 @@ Users can customize this list.")
 (defun diff-lsp--file-string()
   "returns name of the file that the cursor section is in"
   (save-excursion
-    (while (not (looking-at
-                 "Comment by\\|Reviewed by\\|Reply by\\|modified\\|new file\\|deleted"))
+    (while (not (looking-at "modified\\|new file\\|deleted"))
       (forward-line -1))
     (thing-at-point 'line)))
 
