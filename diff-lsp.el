@@ -184,6 +184,22 @@ Users can customize this list.")
       (message "Skipping lsp--after-set-visited-file-name for diff-lsp tempfile.")
     (apply orig-fn args)))
 
+;; Headerline / breadcrumb handling
+(defun diff-lsp--build-file-string (orig-fn &rest args)
+  "wrapper function"
+  (if (diff-lsp--valid-buffer)
+      (diff-lsp--file-string)
+    (lsp-headerline--build-file-string)))
+
+(defun diff-lsp--file-string()
+  "returns name of the file that the cursor section is in"
+  (save-excursion
+    (while (not (looking-at
+                 "Comment by\\|Reviewed by\\|Reply by\\|modified\\|new file\\|deleted"))
+      (forward-line -1))
+    (thing-at-point 'line)))
+
+
 ;;;###autoload
 (defun diff-lsp-setup-advice()
   "Call this function or add a call to it in your init to "
@@ -198,6 +214,7 @@ Users can customize this list.")
   (advice-add 'lsp--text-document-did-close :around #'diff-lsp--text-document-did-close)
   (advice-add 'lsp-disconnect :around #'diff-lsp--disconnect)
   (advice-add 'lsp--after-set-visited-file-name :around #'diff-lsp--after-set-visited-file-name)
+  (advice-add 'lsp-headerline--build-file-string :around #'diff-lsp--build-file-string)
   ;; And finally:
   ;; This is needed for both on startup and when we re-draw the buffer after each comment is added/removed
   ;; however, since the diff-lsp process wasn't stopped, we just reconnect to it via the built in
@@ -218,6 +235,7 @@ Users can customize this list.")
   (advice-remove 'lsp--text-document-did-close #'diff-lsp--text-document-did-close)
   (advice-remove 'lsp-disconnect #'diff-lsp--disconnect)
   (advice-remove 'lsp--after-set-visited-file-name #'diff-lsp--after-set-visited-file-name)
+  (advice-remove 'lsp-headerline--build-file-string #'diff-lsp--build-file-string)
   (remove-hook 'code-review-mode-hook #'lsp))
 
 (provide 'diff-lsp)
