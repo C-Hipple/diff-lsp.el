@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.11
+;; Version: 0.0.12
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -192,9 +192,10 @@ Users can customize this list.")
     (lsp-headerline--build-file-string)))
 
 (defun diff-lsp--file-string()
-  "returns name of the file that the cursor section is in"
+  "returns name of the file that the cursor section is in, falls back to PR
+Author if not in a file.  Uses Author since Code-Review mode already puts the title."
   (save-excursion
-    (while (not (looking-at "modified\\|new file\\|deleted"))
+    (while (not (looking-at "modified\\|new file\\|deleted\\|Author"))
       (forward-line -1))
     (thing-at-point 'line)))
 
