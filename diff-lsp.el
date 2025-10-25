@@ -192,9 +192,10 @@ Users can customize this list.")
     (lsp-headerline--build-file-string)))
 
 (defun diff-lsp--file-string()
-  "returns name of the file that the cursor section is in, falls back to PR title if not in a file."
+  "returns name of the file that the cursor section is in, falls back to PR
+Author if not in a file.  Uses Author since Code-Review mode already puts the title."
   (save-excursion
-    (while (not (looking-at "modified\\|new file\\|deleted\\|Title"))
+    (while (not (looking-at "modified\\|new file\\|deleted\\|Author"))
       (forward-line -1))
     (thing-at-point 'line)))
 
