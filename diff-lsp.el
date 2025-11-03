@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.12
+;; Version: 0.0.13
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -189,7 +189,7 @@ Users can customize this list.")
   "wrapper function"
   (if (diff-lsp--valid-buffer)
       (diff-lsp--file-string)
-    (lsp-headerline--build-file-string)))
+    (apply orig-fn args)))
 
 (defun diff-lsp--file-string()
   "returns name of the file that the cursor section is in, falls back to PR
