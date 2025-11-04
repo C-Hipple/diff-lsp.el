@@ -99,6 +99,12 @@ Users can customize this list.")
   (lsp-send-execute-command "refresh"))
 
 ;;;###autoload
+(defun diff-lsp-check ()
+  (interactive)
+  "Calls the check custom command on diff-lsp."
+  (lsp-send-execute-command "check"))
+
+;;;###autoload
 (defun diff-lsp-fetch ()
   (interactive)
   "Calls the fetch custom command on diff-lsp.  you shouldn't actually need this but just to show off the capability"
