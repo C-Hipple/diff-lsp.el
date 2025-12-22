@@ -38,7 +38,7 @@
 ;; Initial version is just for getting the lsp setup and configured.
 
 (defvar diff-lsp-major-modes
-  '(code-review-mode)
+  '(code-review-mode my-code-review-mode)
   "Major modes for which diff-lsp overrides should be applied.
 Users can customize this list.")
 
@@ -55,6 +55,9 @@ Users can customize this list.")
 
   (add-to-list 'lsp-language-id-configuration
                '(code-review-mode . "diff-lsp"))
+
+  (add-to-list 'lsp-language-id-configuration
+               '(my-code-review-mode . "diff-lsp"))
 
   (lsp-register-client
    (make-lsp-client :new-connection (lsp-stdio-connection "diff-lsp")
@@ -164,7 +167,7 @@ Users can customize this list.")
       ;; in the buffer to temp file.
       ;; update: We add 4, I'm not sure what changed, maybe someting from underlying diffs
       ;; update again, seems to be 3 again on my personal pc? atleast for this rust proejct
-      (+ (line-number-at-pos) 3)
+      (+ (line-number-at-pos) 2)
     (apply orig-fn args)))
 
 
@@ -200,9 +203,12 @@ Users can customize this list.")
 (defun diff-lsp--file-string()
   "returns name of the file that the cursor section is in"
   (save-excursion
-    (while (not (looking-at "modified\\|new file\\|deleted"))
+    (while (and (not (bobp))
+                (not (looking-at "modified\\|new file\\|deleted")))
       (forward-line -1))
-    (thing-at-point 'line)))
+    (if (looking-at "modified\\|new file\\|deleted")
+        (thing-at-point 'line)
+      nil)))
 
 
 ;;;###autoload
@@ -224,7 +230,10 @@ Users can customize this list.")
   ;; This is needed for both on startup and when we re-draw the buffer after each comment is added/removed
   ;; however, since the diff-lsp process wasn't stopped, we just reconnect to it via the built in
   ;; lsp-mode workspaces.
-  (add-hook 'code-review-mode-hook #'lsp))
+  (add-hook 'code-review-mode-hook #'lsp)
+  (add-hook 'my-code-review-mode-hook #'lsp)
+
+  )
 
 ;;;###autoload
 (defun diff-lsp-remove-advice ()
