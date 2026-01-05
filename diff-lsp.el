@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.13
+;; Version: 0.0.14
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -215,6 +215,7 @@ Author if not in a file.  Uses Author since Code-Review mode already puts the ti
 ;;;###autoload
 (defun diff-lsp-setup-advice()
   "Call this function or add a call to it in your init to "
+  (interactive)
 
   (advice-add 'lsp :around #'diff-lsp--entrypoint)
   (advice-add 'lsp-f-same? :around #'diff-lsp--lsp-f-same?)
@@ -251,7 +252,9 @@ Author if not in a file.  Uses Author since Code-Review mode already puts the ti
   (advice-remove 'lsp-disconnect #'diff-lsp--disconnect)
   (advice-remove 'lsp--after-set-visited-file-name #'diff-lsp--after-set-visited-file-name)
   (advice-remove 'lsp-headerline--build-file-string #'diff-lsp--build-file-string)
-  (remove-hook 'code-review-mode-hook #'lsp))
+  (remove-hook 'code-review-mode-hook #'lsp)
+  (remove-hook 'my-code-review-mode-hook #'lsp)
+  )
 
 (provide 'diff-lsp)
 ;;; diff-lsp.el ends here
