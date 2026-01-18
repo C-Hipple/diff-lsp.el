@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.14
+;; Version: 0.0.15
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -114,10 +114,24 @@ Users can customize this list.")
   (lsp-send-execute-command "fetch"))
 
 
+(defvar-local diff-lsp--character-offset -1
+  "Character offset for diff-lsp. Calculated based on buffer content.")
+
+(defun diff-lsp--calculate-character-offset ()
+  "Calculates the character offset based on the buffer content."
+  (save-excursion
+    (goto-char (point-min))
+    ;; this buffer was washed with delta with line numbers ON.
+    ;; may have to update in future if some files have more than 10000 lines
+    (if (re-search-forward "^[ 0-9]+⋮[ 0-9]+│[+\\- ]" nil t)
+        (setq diff-lsp--character-offset (- (length (match-string 0))))
+      (setq diff-lsp--character-offset -1))))
+
 ;; Below are a series of advice patches which support an LSP client for a buffer not visiting a file.
 (defun diff-lsp--entrypoint (orig-fn &rest args)
   "patch function which sets up diff lsp before starting the lsp"
   (when (diff-lsp--valid-buffer)
+    (diff-lsp--calculate-character-offset)
     (diff-lsp--buffer-to-temp-file (diff-lsp--tempfile-name)))
   (apply orig-fn args))
 
@@ -167,7 +181,7 @@ Users can customize this list.")
       ;; in the buffer to temp file.
       ;; update: We add 4, I'm not sure what changed, maybe someting from underlying diffs
       ;; update again, seems to be 3 again on my personal pc? atleast for this rust proejct
-      (+ (line-number-at-pos) 2)
+      (+ (line-number-at-pos) 4)
     (apply orig-fn args)))
 
 
@@ -212,6 +226,18 @@ Author if not in a file.  Uses Author since Code-Review mode already puts the ti
       nil)))
 
 
+(defun diff-lsp--text-document-position-params (orig-fn &rest args)
+  "Advice to adjust character position in TextDocumentPositionParams."
+  (if (diff-lsp--valid-buffer)
+      (let ((params (apply orig-fn args)))
+        (when (and params diff-lsp--character-offset)
+          (let* ((pos (plist-get params :position))
+                 (char (plist-get pos :character)))
+            (when (and pos char)
+              (plist-put pos :character (+ char diff-lsp--character-offset)))))
+        params)
+    (apply orig-fn args)))
+
 ;;;###autoload
 (defun diff-lsp-setup-advice()
   "Call this function or add a call to it in your init to "
@@ -228,6 +254,7 @@ Author if not in a file.  Uses Author since Code-Review mode already puts the ti
   (advice-add 'lsp-disconnect :around #'diff-lsp--disconnect)
   (advice-add 'lsp--after-set-visited-file-name :around #'diff-lsp--after-set-visited-file-name)
   (advice-add 'lsp-headerline--build-file-string :around #'diff-lsp--build-file-string)
+  (advice-add 'lsp--text-document-position-params :around #'diff-lsp--text-document-position-params)
   ;; And finally:
   ;; This is needed for both on startup and when we re-draw the buffer after each comment is added/removed
   ;; however, since the diff-lsp process wasn't stopped, we just reconnect to it via the built in
@@ -252,6 +279,7 @@ Author if not in a file.  Uses Author since Code-Review mode already puts the ti
   (advice-remove 'lsp-disconnect #'diff-lsp--disconnect)
   (advice-remove 'lsp--after-set-visited-file-name #'diff-lsp--after-set-visited-file-name)
   (advice-remove 'lsp-headerline--build-file-string #'diff-lsp--build-file-string)
+  (advice-remove 'lsp--text-document-position-params #'diff-lsp--text-document-position-params)
   (remove-hook 'code-review-mode-hook #'lsp)
   (remove-hook 'my-code-review-mode-hook #'lsp)
   )

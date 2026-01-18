@@ -1,5 +1,5 @@
 # diff-lsp.el
-Emacs package for using with diff-lsp with magit &amp; code-review
+Emacs package for using with diff-lsp with magit &amp; code-review or code-review-server
 
 
 ## Functionality
@@ -26,11 +26,13 @@ To remove it, run
 
 You can tweak your tempfile location if you so desire via adjusting.  The default value is `/tmp/`
 
+Note that diff-lsp will also need to know where you're writing this tmp file, and this is where it checks by default.
+
 ```elisp
-(setq diff-lsp-tempfile-dir "/.diff-lsp/")
+(setq diff-lsp-tempfile-dir "/tmp/")
 ```
 
-You can also adjust which major modes are active using.  Default value is code-review-mode only.
+You can also adjust which major modes are active using.  Default value is code-review-mode only and my-code-review-mode.
 
 ```elisp
 (setq diff-lsp-major-modes '(code-review-mode magit-status-mode))
