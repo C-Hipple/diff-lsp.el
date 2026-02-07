@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.15
+;; Version: 0.0.16
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -29,6 +29,23 @@
 
 (defvar diff-lsp-tempfile-dir "/tmp/"
   "defines where the tempfiles for diff-lsp are stored.")
+
+(defvar diff-lsp-header-lines 4
+  "Number of header lines added to diff-lsp tempfiles.
+This value is automatically set by `diff-lsp--buffer-to-temp-file' to match
+the actual number of headers added. Default is 4 as a fallback.
+
+The tempfile format is:
+  Line 0 (LSP): Project: <filename>
+  Line 1 (LSP): Root: <root>
+  Line 2 (LSP): Buffer: <project>
+  Line 3 (LSP): Type: <type>
+  Line 4 (LSP): <content line 1>
+
+You can manually override this if needed, but normally it's set automatically.")
+
+(defvar diff-lsp-debug-line-offset nil
+  "Set to t to enable debug logging for line offset calculations.")
 
 (defun diff-lsp--tempfile-name ()
   (if (string-suffix-p "/" diff-lsp-tempfile-dir)
@@ -66,19 +83,34 @@ Users can customize this list.")
   )
 
 (defun diff-lsp--buffer-to-temp-file (filename)
+  "Create a tempfile with header lines followed by buffer contents.
+Automatically sets diff-lsp-header-lines based on the number of headers added."
   (delete-file filename)
-  (let ((contents (buffer-string))
-        (current_filename (buffer-name))
-        (project_name (projectile-project-name))
-        (root (projectile-project-root))
-        (buffer-type (replace-regexp-in-string "-mode" "" (prin1-to-string major-mode))))
+  (let* ((contents (buffer-string))
+         (current_filename (buffer-name))
+         (project_name (projectile-project-name))
+         (root (projectile-project-root))
+         (buffer-type (replace-regexp-in-string "-mode" "" (prin1-to-string major-mode)))
+         ;; Define headers as a list of (key . value) pairs
+         (headers `(("Project" . ,current_filename)
+                    ("Root" . ,root)
+                    ("Buffer" . ,project_name)
+                    ("Type" . ,buffer-type)))
+         (header-count (length headers)))
+
+    ;; Set the offset to match the number of headers we're adding
+    (setq diff-lsp-header-lines header-count)
+
     (with-temp-buffer
-      (insert "Project:" ?\s current_filename ?\n)
-      (insert "Root:" ?\s root ?\n)
-      (insert "Buffer:" ?\s project_name ?\n)
-      (insert "Type:" ?\s buffer-type ?\n)
+      ;; Insert all headers
+      (dolist (header headers)
+        (insert (car header) ":" ?\s (cdr header) ?\n))
+      ;; Insert actual content
       (insert contents)
-      (write-file filename))))
+      (write-file filename))
+
+    (when diff-lsp-debug-line-offset
+      (message "[diff-lsp] Created tempfile with %d header lines" header-count))))
 
 ;; (remove-hook 'code-review-mode-hook 'diff-lsp--buffer-to-temp-file)
 ;; (add-hook 'code-review-mode-hook 'diff-lsp--buffer-to-temp-file)
@@ -94,6 +126,44 @@ Users can customize this list.")
 ;; f l for files - logs, i guess
 (define-key evil-motion-state-map (kbd ",") nil) ;; leader key issues.  Don't care about this one
 (define-key evil-motion-state-map (kbd ", f l") 'diff-lsp--tail-logs)
+
+;;;###autoload
+(defun diff-lsp-test-offset ()
+  "Test and display the line offset calculation at current cursor position.
+Run this in a code-review buffer to verify the offset is correct.
+Enable diff-lsp-debug-line-offset for more detailed logging."
+  (interactive)
+  (if (not (diff-lsp--valid-buffer))
+      (message "Not in a diff-lsp buffer (code-review-mode or my-code-review-mode)")
+    (let* ((emacs-line (line-number-at-pos))
+           (lsp-line (+ (1- emacs-line) diff-lsp-header-lines))
+           (tempfile-line-1based (1+ lsp-line)))
+      (message "Emacs line: %d | LSP line (0-based): %d | Tempfile line (1-based): %d | Header lines: %d"
+               emacs-line lsp-line tempfile-line-1based diff-lsp-header-lines)
+      (with-current-buffer (get-buffer-create "*diff-lsp-offset-test*")
+        (erase-buffer)
+        (insert (format "=== Diff-LSP Offset Test ===\n\n"))
+        (insert (format "Current Emacs line: %d (1-based)\n" emacs-line))
+        (insert (format "Calculated LSP line: %d (0-based)\n" lsp-line))
+        (insert (format "Tempfile line: %d (1-based)\n\n" tempfile-line-1based))
+        (insert "Tempfile structure:\n")
+        (insert "  Line 0 (LSP) | Line 1 (Emacs): Project: ...\n")
+        (insert "  Line 1 (LSP) | Line 2 (Emacs): Root: ...\n")
+        (insert "  Line 2 (LSP) | Line 3 (Emacs): Buffer: ...\n")
+        (insert "  Line 3 (LSP) | Line 4 (Emacs): Type: ...\n")
+        (insert "  Line 4 (LSP) | Line 5 (Emacs): <CONTENT LINE 1>\n")
+        (insert "  Line 5 (LSP) | Line 6 (Emacs): <CONTENT LINE 2>\n")
+        (insert "  ...\n\n")
+        (insert (format "Your cursor is on buffer line %d\n" emacs-line))
+        (insert (format "This maps to tempfile LSP line %d\n" lsp-line))
+        (insert (format "Which is tempfile 1-based line %d\n\n" tempfile-line-1based))
+        (insert "If hover/diagnostics are:\n")
+        (insert "  - One line ABOVE: increase diff-lsp-header-lines\n")
+        (insert "  - One line BELOW: decrease diff-lsp-header-lines\n\n")
+        (insert (format "Current setting: diff-lsp-header-lines = %d\n" diff-lsp-header-lines))
+        (insert "To adjust: (setq diff-lsp-header-lines N) where N is 3, 4, or 5\n")
+        (insert "To enable logging: (setq diff-lsp-debug-line-offset t)\n")
+        (display-buffer (current-buffer))))))
 
 ;;;###autoload
 (defun diff-lsp-refresh ()
@@ -175,13 +245,27 @@ Users can customize this list.")
 
 
 (defun diff-lsp--cur-line(orig-fn &rest args)
-  "Wrapper which offsets the line to account for the extra lines we added above to communicate with diff-lsp."
+  "Wrapper which offsets the line to account for the header lines in diff-lsp tempfile.
+
+The tempfile has diff-lsp-header-lines (default 4) before content starts.
+LSP uses 0-based line indexing, Emacs uses 1-based.
+
+Formula: emacs_line (1-based) → lsp_line (0-based)
+         lsp_line = (emacs_line - 1) + diff-lsp-header-lines
+                  = emacs_line + (diff-lsp-header-lines - 1)
+
+Example with default 4 header lines:
+  Emacs line 1 → LSP line 0 + 4 = 4 (tempfile line 5 in 1-based terms)"
   (if (diff-lsp--valid-buffer)
-      ;; we add 3 here, since it's usually -1 to accoutn for 1 index of editor, but we add 4 lines
-      ;; in the buffer to temp file.
-      ;; update: We add 4, I'm not sure what changed, maybe someting from underlying diffs
-      ;; update again, seems to be 3 again on my personal pc? atleast for this rust proejct
-      (+ (line-number-at-pos) 4)
+      (let* ((emacs-line (line-number-at-pos))
+             ;; Convert Emacs 1-based to LSP 0-based, then add header lines
+             (lsp-line (+ (1- emacs-line) diff-lsp-header-lines)))
+
+        (when diff-lsp-debug-line-offset
+          (message "[diff-lsp-offset] Emacs line %d → LSP line %d (header lines: %d)"
+                   emacs-line lsp-line diff-lsp-header-lines))
+
+        lsp-line)
     (apply orig-fn args)))
 
 
