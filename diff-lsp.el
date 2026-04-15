@@ -269,11 +269,22 @@ Example with default 4 header lines:
     (apply orig-fn args)))
 
 
+(defun diff-lsp--clean-recentf-list ()
+  "Remove all diff-lsp tempfiles from the global `recentf-list'.
+Matches entries whose filename (basename) begins with \"diff_lsp_\"."
+  (when (boundp 'recentf-list)
+    (setq recentf-list
+          (seq-remove (lambda (file)
+                        (string-match-p "\\`diff_lsp_"
+                                        (file-name-nondirectory (or file ""))))
+                      recentf-list))))
+
 (defun diff-lsp--text-document-did-close (orig-fn &rest args)
   (if (diff-lsp--valid-buffer)
       (progn
         ;; (message (mapconcat #'prin1-to-string args))
         (message "Skipping textDocument/didClose for diff-lsp tempfile.")
+        (diff-lsp--clean-recentf-list)
         (lsp-notify "textDocument/didClose"
                     `(:textDocument ,(lsp--text-document-identifier))))
     (apply orig-fn args)))
