@@ -31,18 +31,50 @@
   "defines where the tempfiles for diff-lsp are stored.")
 
 (defvar diff-lsp-header-lines 4
-  "Number of header lines added to diff-lsp tempfiles.
-This value is automatically set by `diff-lsp--buffer-to-temp-file' to match
-the actual number of headers added. Default is 4 as a fallback.
+  "Fallback number of header lines added to diff-lsp tempfiles.
+Used only when the per-tempfile count can't be determined.
+Per-tempfile counts are tracked in `diff-lsp--header-lines-cache'.")
 
-The tempfile format is:
-  Line 0 (LSP): Project: <filename>
-  Line 1 (LSP): Root: <root>
-  Line 2 (LSP): Buffer: <project>
-  Line 3 (LSP): Type: <type>
-  Line 4 (LSP): <content line 1>
+(defvar diff-lsp--header-lines-cache (make-hash-table :test 'equal)
+  "Cache mapping tempfile path -> number of header lines in that tempfile.
+Populated by `diff-lsp--buffer-to-temp-file' when writing, and by
+`diff-lsp--header-lines-for' on cache miss by reading the file.")
 
-You can manually override this if needed, but normally it's set automatically.")
+(defun diff-lsp--count-header-lines-in-file (filename)
+  "Count leading header lines in FILENAME.
+A header line matches a \"Key: value\" pattern; counting stops at the
+first non-matching line."
+  (when (file-exists-p filename)
+    (with-temp-buffer
+      (insert-file-contents filename)
+      (goto-char (point-min))
+      (let ((count 0))
+        (while (looking-at "^[A-Za-z][A-Za-z0-9_-]*: ")
+          (setq count (1+ count))
+          (forward-line 1))
+        count))))
+
+(defun diff-lsp--header-lines-for (filename)
+  "Return cached header line count for FILENAME, computing it if absent.
+Falls back to `diff-lsp-header-lines' if the file cannot be read.
+When called interactively, uses the current buffer's tempfile and
+messages the result."
+  (interactive (list (diff-lsp--tempfile-name)))
+  (let ((count (or (gethash filename diff-lsp--header-lines-cache)
+                   (let ((c (diff-lsp--count-header-lines-in-file filename)))
+                     (if c
+                         (progn (puthash filename c diff-lsp--header-lines-cache) c)
+                       diff-lsp-header-lines)))))
+    (when (called-interactively-p 'any)
+      (message "[diff-lsp] %s -> %d header lines" filename count))
+    count))
+
+(defun diff-lsp--invalidate-header-cache (&optional filename)
+  "Invalidate header-lines cache for FILENAME, or clear it entirely if nil."
+  (interactive)
+  (if filename
+      (remhash filename diff-lsp--header-lines-cache)
+    (clrhash diff-lsp--header-lines-cache)))
 
 (defvar diff-lsp-debug-line-offset nil
   "Set to t to enable debug logging for line offset calculations.")
@@ -84,7 +116,7 @@ Users can customize this list.")
 
 (defun diff-lsp--buffer-to-temp-file (filename)
   "Create a tempfile with header lines followed by buffer contents.
-Automatically sets diff-lsp-header-lines based on the number of headers added."
+Records the header-line count for FILENAME in `diff-lsp--header-lines-cache'."
   (delete-file filename)
   (let* ((contents (buffer-string))
          (current_filename (buffer-name))
@@ -98,8 +130,7 @@ Automatically sets diff-lsp-header-lines based on the number of headers added."
                     ("Type" . ,buffer-type)))
          (header-count (length headers)))
 
-    ;; Set the offset to match the number of headers we're adding
-    (setq diff-lsp-header-lines header-count)
+    (puthash filename header-count diff-lsp--header-lines-cache)
 
     (with-temp-buffer
       ;; Insert all headers
@@ -110,7 +141,7 @@ Automatically sets diff-lsp-header-lines based on the number of headers added."
       (write-file filename))
 
     (when diff-lsp-debug-line-offset
-      (message "[diff-lsp] Created tempfile with %d header lines" header-count))))
+      (message "[diff-lsp] Created tempfile %s with %d header lines" filename header-count))))
 
 ;; (remove-hook 'code-review-mode-hook 'diff-lsp--buffer-to-temp-file)
 ;; (add-hook 'code-review-mode-hook 'diff-lsp--buffer-to-temp-file)
@@ -136,10 +167,11 @@ Enable diff-lsp-debug-line-offset for more detailed logging."
   (if (not (diff-lsp--valid-buffer))
       (message "Not in a diff-lsp buffer (code-review-mode or my-code-review-mode)")
     (let* ((emacs-line (line-number-at-pos))
-           (lsp-line (+ (1- emacs-line) diff-lsp-header-lines))
+           (header-lines (diff-lsp--header-lines-for (diff-lsp--tempfile-name)))
+           (lsp-line (+ (1- emacs-line) header-lines))
            (tempfile-line-1based (1+ lsp-line)))
       (message "Emacs line: %d | LSP line (0-based): %d | Tempfile line (1-based): %d | Header lines: %d"
-               emacs-line lsp-line tempfile-line-1based diff-lsp-header-lines)
+               emacs-line lsp-line tempfile-line-1based header-lines)
       (with-current-buffer (get-buffer-create "*diff-lsp-offset-test*")
         (erase-buffer)
         (insert (format "=== Diff-LSP Offset Test ===\n\n"))
@@ -157,11 +189,11 @@ Enable diff-lsp-debug-line-offset for more detailed logging."
         (insert (format "Your cursor is on buffer line %d\n" emacs-line))
         (insert (format "This maps to tempfile LSP line %d\n" lsp-line))
         (insert (format "Which is tempfile 1-based line %d\n\n" tempfile-line-1based))
-        (insert "If hover/diagnostics are:\n")
-        (insert "  - One line ABOVE: increase diff-lsp-header-lines\n")
-        (insert "  - One line BELOW: decrease diff-lsp-header-lines\n\n")
-        (insert (format "Current setting: diff-lsp-header-lines = %d\n" diff-lsp-header-lines))
-        (insert "To adjust: (setq diff-lsp-header-lines N) where N is 3, 4, or 5\n")
+        (insert "If hover/diagnostics are off by one, the tempfile header\n")
+        (insert "count is being miscounted. Inspect the tempfile directly or\n")
+        (insert "call M-x diff-lsp--invalidate-header-cache and retry.\n\n")
+        (insert (format "Detected header lines (cached): %d\n" header-lines))
+        (insert (format "Fallback `diff-lsp-header-lines': %d\n" diff-lsp-header-lines))
         (insert "To enable logging: (setq diff-lsp-debug-line-offset t)\n")
         (display-buffer (current-buffer))))))
 
@@ -258,12 +290,13 @@ Example with default 4 header lines:
   Emacs line 1 → LSP line 0 + 4 = 4 (tempfile line 5 in 1-based terms)"
   (if (diff-lsp--valid-buffer)
       (let* ((emacs-line (line-number-at-pos))
+             (header-lines (diff-lsp--header-lines-for (diff-lsp--tempfile-name)))
              ;; Convert Emacs 1-based to LSP 0-based, then add header lines
-             (lsp-line (+ (1- emacs-line) diff-lsp-header-lines)))
+             (lsp-line (+ (1- emacs-line) header-lines)))
 
         (when diff-lsp-debug-line-offset
           (message "[diff-lsp-offset] Emacs line %d → LSP line %d (header lines: %d)"
-                   emacs-line lsp-line diff-lsp-header-lines))
+                   emacs-line lsp-line header-lines))
 
         lsp-line)
     (apply orig-fn args)))
