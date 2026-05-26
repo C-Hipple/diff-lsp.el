@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.16
+;; Version: 0.0.17
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -322,6 +322,24 @@ Author if not in a file.  Uses Author since Code-Review mode already puts the ti
         params)
     (apply orig-fn args)))
 
+(defun my/clean-lsp-diffs-from-recentf ()
+  "Remove all files matching /tmp/diff_lsp* from the recentf list."
+  (interactive)
+  (when (boundp 'recentf-list)
+    (let ((orig-length (length recentf-list)))
+      ;; Filter out any files that match the pattern
+      (setq recentf-list
+            (seq-remove (lambda (file)
+                          (string-match-p "^/tmp/diff_lsp" file))
+                        recentf-list))
+      ;; If items were actually removed, save the updated list to disk
+      (when (and (/= orig-length (length recentf-list))
+                 (fboundp 'recentf-save-list))
+        (recentf-save-list)))))
+
+
+;; Run the cleanup function every 10 seconds, starting immediately
+
 ;;;###autoload
 (defun diff-lsp-setup-advice()
   "Call this function or add a call to it in your init to "
@@ -346,6 +364,7 @@ Author if not in a file.  Uses Author since Code-Review mode already puts the ti
   (add-hook 'code-review-mode-hook #'lsp)
   (add-hook 'my-code-review-mode-hook #'lsp)
 
+  (run-at-time 0 10 #'my/clean-lsp-diffs-from-recentf)
   )
 
 ;;;###autoload
