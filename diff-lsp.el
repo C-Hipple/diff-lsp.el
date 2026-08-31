@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.17
+;; Version: 0.0.18
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -109,10 +109,21 @@ Users can customize this list.")
                '(my-code-review-mode . "diff-lsp"))
 
   (lsp-register-client
-   (make-lsp-client :new-connection (lsp-stdio-connection "diff-lsp")
+   (make-lsp-client :new-connection (lsp-stdio-connection #'diff-lsp--server-command)
                     :activation-fn (lsp-activate-on "diff-lsp")
                     :server-id 'diff-lsp))
   )
+
+(defun diff-lsp--server-command ()
+  "Command used to start the diff-lsp server.
+Passes this buffer's tempfile as an argument so the server reads the
+init params written for this buffer, rather than whichever
+/tmp/diff_lsp_* file happens to be the most recent (another session may
+have written one in the meantime)."
+  (let ((tempfile (and (diff-lsp--valid-buffer) (diff-lsp--tempfile-name))))
+    (if (and tempfile (file-exists-p tempfile))
+        (list "diff-lsp" tempfile)
+      (list "diff-lsp"))))
 
 (defun diff-lsp--buffer-to-temp-file (filename)
   "Create a tempfile with header lines followed by buffer contents.
