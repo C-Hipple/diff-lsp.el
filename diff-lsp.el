@@ -95,6 +95,17 @@ Users can customize this list.")
   "checks the major mode to see if we should apply diff-lsp overrides"
   (not (null (member major-mode diff-lsp-major-modes))))
 
+(defun diff-lsp--server-command ()
+  "Command used to start the diff-lsp server.
+Passes this buffer's tempfile as an argument so the server reads the
+init params written for this buffer, rather than whichever
+/tmp/diff_lsp_* file happens to be the most recent (another session may
+have written one in the meantime)."
+  (let ((tempfile (and (diff-lsp--valid-buffer) (diff-lsp--tempfile-name))))
+    (if (and tempfile (file-exists-p tempfile))
+        (list "diff-lsp" tempfile)
+      (list "diff-lsp"))))
+
 (with-eval-after-load 'lsp-mode
   (add-to-list 'lsp-language-id-configuration
                '(diff-test-mode . "diff-lsp"))
@@ -113,17 +124,6 @@ Users can customize this list.")
                     :activation-fn (lsp-activate-on "diff-lsp")
                     :server-id 'diff-lsp))
   )
-
-(defun diff-lsp--server-command ()
-  "Command used to start the diff-lsp server.
-Passes this buffer's tempfile as an argument so the server reads the
-init params written for this buffer, rather than whichever
-/tmp/diff_lsp_* file happens to be the most recent (another session may
-have written one in the meantime)."
-  (let ((tempfile (and (diff-lsp--valid-buffer) (diff-lsp--tempfile-name))))
-    (if (and tempfile (file-exists-p tempfile))
-        (list "diff-lsp" tempfile)
-      (list "diff-lsp"))))
 
 (defun diff-lsp--buffer-to-temp-file (filename)
   "Create a tempfile with header lines followed by buffer contents.
