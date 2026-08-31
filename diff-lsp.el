@@ -179,27 +179,29 @@ Enable diff-lsp-debug-line-offset for more detailed logging."
       (message "Not in a diff-lsp buffer (code-review-mode or my-code-review-mode)")
     (let* ((emacs-line (line-number-at-pos))
            (header-lines (diff-lsp--header-lines-for (diff-lsp--tempfile-name)))
-           (lsp-line (+ (1- emacs-line) header-lines))
-           (tempfile-line-1based (1+ lsp-line)))
-      (message "Emacs line: %d | LSP line (0-based): %d | Tempfile line (1-based): %d | Header lines: %d"
-               emacs-line lsp-line tempfile-line-1based header-lines)
+           ;; Must match diff-lsp--cur-line: diff-lsp expects the 1-based
+           ;; tempfile line as position.line, not the LSP-spec 0-based one.
+           (sent-line (+ (1- emacs-line) header-lines 1)))
+      (message "Emacs line: %d | position.line sent (1-based tempfile): %d | Header lines: %d"
+               emacs-line sent-line header-lines)
       (with-current-buffer (get-buffer-create "*diff-lsp-offset-test*")
         (erase-buffer)
         (insert (format "=== Diff-LSP Offset Test ===\n\n"))
         (insert (format "Current Emacs line: %d (1-based)\n" emacs-line))
-        (insert (format "Calculated LSP line: %d (0-based)\n" lsp-line))
-        (insert (format "Tempfile line: %d (1-based)\n\n" tempfile-line-1based))
-        (insert "Tempfile structure:\n")
-        (insert "  Line 0 (LSP) | Line 1 (Emacs): Project: ...\n")
-        (insert "  Line 1 (LSP) | Line 2 (Emacs): Root: ...\n")
-        (insert "  Line 2 (LSP) | Line 3 (Emacs): Buffer: ...\n")
-        (insert "  Line 3 (LSP) | Line 4 (Emacs): Type: ...\n")
-        (insert "  Line 4 (LSP) | Line 5 (Emacs): <CONTENT LINE 1>\n")
-        (insert "  Line 5 (LSP) | Line 6 (Emacs): <CONTENT LINE 2>\n")
+        (insert (format "position.line sent to diff-lsp: %d (1-based tempfile line)\n\n" sent-line))
+        (insert "Tempfile structure (with 4 header lines):\n")
+        (insert "  Tempfile line 1: Project: ...\n")
+        (insert "  Tempfile line 2: Root: ...\n")
+        (insert "  Tempfile line 3: Buffer: ...\n")
+        (insert "  Tempfile line 4: Type: ...\n")
+        (insert "  Tempfile line 5: <CONTENT LINE 1 = Emacs line 1>\n")
+        (insert "  Tempfile line 6: <CONTENT LINE 2 = Emacs line 2>\n")
         (insert "  ...\n\n")
+        (insert "diff-lsp keys its line map by 1-based tempfile line numbers\n")
+        (insert "and looks position.line up directly, so the sent value is the\n")
+        (insert "1-based tempfile line, one more than the LSP-spec 0-based value.\n\n")
         (insert (format "Your cursor is on buffer line %d\n" emacs-line))
-        (insert (format "This maps to tempfile LSP line %d\n" lsp-line))
-        (insert (format "Which is tempfile 1-based line %d\n\n" tempfile-line-1based))
+        (insert (format "This is tempfile 1-based line %d, which is what we send\n\n" sent-line))
         (insert "If hover/diagnostics are off by one, the tempfile header\n")
         (insert "count is being miscounted. Inspect the tempfile directly or\n")
         (insert "call M-x diff-lsp--invalidate-header-cache and retry.\n\n")
@@ -290,20 +292,26 @@ Enable diff-lsp-debug-line-offset for more detailed logging."
 (defun diff-lsp--cur-line(orig-fn &rest args)
   "Wrapper which offsets the line to account for the header lines in diff-lsp tempfile.
 
-The tempfile has diff-lsp-header-lines (default 4) before content starts.
-LSP uses 0-based line indexing, Emacs uses 1-based.
+The tempfile has header lines (4 by default) before content starts.
+diff-lsp keys its line map by 1-based tempfile line numbers
+\(CodeReviewDiff::self_parse inserts at i + 1) and looks up the incoming
+position.line in it directly, so the value we send must be the 1-based
+tempfile line — one more than the LSP-spec 0-based value.  The bun
+client compensates the same way (its offset is header count + 1).
 
-Formula: emacs_line (1-based) → lsp_line (0-based)
-         lsp_line = (emacs_line - 1) + diff-lsp-header-lines
-                  = emacs_line + (diff-lsp-header-lines - 1)
+Formula: emacs_line (1-based) → sent position.line (1-based tempfile)
+         sent = (emacs_line - 1) + header_lines + 1
+              = emacs_line + header_lines
 
-Example with default 4 header lines:
-  Emacs line 1 → LSP line 0 + 4 = 4 (tempfile line 5 in 1-based terms)"
+Example with 4 header lines:
+  Emacs line 1 → tempfile line 5 (1-based) → send 5"
   (if (diff-lsp--valid-buffer)
       (let* ((emacs-line (line-number-at-pos))
              (header-lines (diff-lsp--header-lines-for (diff-lsp--tempfile-name)))
-             ;; Convert Emacs 1-based to LSP 0-based, then add header lines
-             (lsp-line (+ (1- emacs-line) header-lines)))
+             ;; Emacs 1-based cursor line -> 0-based tempfile line
+             ;; (+ header-lines), then +1 because diff-lsp's lines_map
+             ;; is keyed by 1-based tempfile line numbers.
+             (lsp-line (+ (1- emacs-line) header-lines 1)))
 
         (when diff-lsp-debug-line-offset
           (message "[diff-lsp-offset] Emacs line %d → LSP line %d (header lines: %d)"
