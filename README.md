@@ -38,6 +38,12 @@ You can also adjust which major modes are active using.  Default value is code-r
 (setq diff-lsp-major-modes '(code-review-mode magit-status-mode))
 ```
 
+Definitions and references jump to the source files (in the PR's worktree when the review has one). diff-lsp can also return locations inside the diff itself (its `diffLocations` option), but it names them by the tempfile and its 1-based line, so Emacs would open the raw tempfile rather than move within the review. That is why the default here is `"off"`; set it before diff-lsp starts to change it.
+
+```elisp
+(setq diff-lsp-diff-locations "off") ; or "both" / "prefer"
+```
+
 
 
 

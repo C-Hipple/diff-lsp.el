@@ -4,7 +4,7 @@
 
 ;; Author: Chris Hipple (github.com/C-Hipple)
 ;; Keywords: lisp
-;; Version: 0.0.18
+;; Version: 0.0.19
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -106,6 +106,13 @@ have written one in the meantime)."
         (list "diff-lsp" tempfile)
       (list "diff-lsp"))))
 
+(defvar diff-lsp-diff-locations "off"
+  "The `diffLocations' initialization option sent to diff-lsp.
+\"off\" answers definitions and references with source locations only.
+diff-lsp's \"both\" and \"prefer\" add locations inside the diff, naming
+them by the tempfile's URI and its 1-based line, so Emacs would open the
+raw tempfile one line below the target instead of moving in the review.")
+
 (with-eval-after-load 'lsp-mode
   (add-to-list 'lsp-language-id-configuration
                '(diff-test-mode . "diff-lsp"))
@@ -122,6 +129,8 @@ have written one in the meantime)."
   (lsp-register-client
    (make-lsp-client :new-connection (lsp-stdio-connection #'diff-lsp--server-command)
                     :activation-fn (lsp-activate-on "diff-lsp")
+                    :initialization-options
+                    (lambda () (list :diffLocations diff-lsp-diff-locations))
                     :server-id 'diff-lsp))
   )
 
@@ -229,24 +238,15 @@ Enable diff-lsp-debug-line-offset for more detailed logging."
   (lsp-send-execute-command "fetch"))
 
 
-(defvar-local diff-lsp--character-offset -1
-  "Character offset for diff-lsp. Calculated based on buffer content.")
-
-(defun diff-lsp--calculate-character-offset ()
-  "Calculates the character offset based on the buffer content."
-  (save-excursion
-    (goto-char (point-min))
-    ;; this buffer was washed with delta with line numbers ON.
-    ;; may have to update in future if some files have more than 10000 lines
-    (if (re-search-forward "^[ 0-9]+⋮[ 0-9]+│[+\\- ]" nil t)
-        (setq diff-lsp--character-offset (- (length (match-string 0))))
-      (setq diff-lsp--character-offset -1))))
+;; Columns go to diff-lsp as they are in the buffer: diff-lsp strips the
+;; +/- marker, and a delta line-number gutter, from the column itself
+;; (`source_position', `delta_marker_width'), so shifting it here as well
+;; took the marker off twice and asked about the identifier before point.
 
 ;; Below are a series of advice patches which support an LSP client for a buffer not visiting a file.
 (defun diff-lsp--entrypoint (orig-fn &rest args)
   "patch function which sets up diff lsp before starting the lsp"
   (when (diff-lsp--valid-buffer)
-    (diff-lsp--calculate-character-offset)
     (diff-lsp--buffer-to-temp-file (diff-lsp--tempfile-name)))
   (apply orig-fn args))
 
@@ -373,18 +373,6 @@ Author if not in a file.  Uses Author since Code-Review mode already puts the ti
       nil)))
 
 
-(defun diff-lsp--text-document-position-params (orig-fn &rest args)
-  "Advice to adjust character position in TextDocumentPositionParams."
-  (if (diff-lsp--valid-buffer)
-      (let ((params (apply orig-fn args)))
-        (when (and params diff-lsp--character-offset)
-          (let* ((pos (plist-get params :position))
-                 (char (plist-get pos :character)))
-            (when (and pos char)
-              (plist-put pos :character (+ char diff-lsp--character-offset)))))
-        params)
-    (apply orig-fn args)))
-
 (defun my/clean-lsp-diffs-from-recentf ()
   "Remove all files matching /tmp/diff_lsp* from the recentf list."
   (interactive)
@@ -419,7 +407,6 @@ Author if not in a file.  Uses Author since Code-Review mode already puts the ti
   (advice-add 'lsp-disconnect :around #'diff-lsp--disconnect)
   (advice-add 'lsp--after-set-visited-file-name :around #'diff-lsp--after-set-visited-file-name)
   (advice-add 'lsp-headerline--build-file-string :around #'diff-lsp--build-file-string)
-  (advice-add 'lsp--text-document-position-params :around #'diff-lsp--text-document-position-params)
   ;; And finally:
   ;; This is needed for both on startup and when we re-draw the buffer after each comment is added/removed
   ;; however, since the diff-lsp process wasn't stopped, we just reconnect to it via the built in
@@ -445,7 +432,8 @@ Author if not in a file.  Uses Author since Code-Review mode already puts the ti
   (advice-remove 'lsp-disconnect #'diff-lsp--disconnect)
   (advice-remove 'lsp--after-set-visited-file-name #'diff-lsp--after-set-visited-file-name)
   (advice-remove 'lsp-headerline--build-file-string #'diff-lsp--build-file-string)
-  (advice-remove 'lsp--text-document-position-params #'diff-lsp--text-document-position-params)
+  ;; Added by versions that shifted the column; gone from the setup above.
+  (advice-remove 'lsp--text-document-position-params 'diff-lsp--text-document-position-params)
   (remove-hook 'code-review-mode-hook #'lsp)
   (remove-hook 'my-code-review-mode-hook #'lsp)
   )
